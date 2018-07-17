@@ -9,7 +9,7 @@
 ## Installation
  1. Clone this git repo.
  ```
- git clone <this repo>
+ git clone https://github.com/peter-madigan/reco3d.git
  ```
  2. Install `reco3d`
  ```
