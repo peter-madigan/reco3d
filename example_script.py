@@ -4,15 +4,22 @@ An example script demonstrating how a reco3d.Manager is initialized and run.
 This script reads in hits from a raw larpix serial data file, applies a calibration, and then writes the data to the standard
 larpix data file format
 '''
+import argparse
+
 from reco3d.managers import Manager
 from reco3d.processes.larpix_processes import (LArPixHitReaderProcess, LArPixCalibrationProcess, LArPixDataWriterProcess)
 from reco3d.resources.larpix_resources import (LArPixSerialDataResource, LArPixDataResource, LArPixCalibrationDataResource)
 from reco3d.tools.options import OptionsTool
 from reco3d.tools.logging import LoggingTool
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--options', type=str, default='example_conf.json', help='path to options configuration file (.json)')
+args = parser.parse_args()
+
 # Set up the manager and initialize the main logger and the "grandparent" options tool
-options = OptionsTool()
+options = OptionsTool(filename=args.options)
 logger = LoggingTool(options.get('LoggingTool'))
+logger.info(options)
 manager = Manager(options.get('Manager'))
 
 # Create a read-only serial file resource

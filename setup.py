@@ -14,6 +14,7 @@ setup(
         long_description=long_description,
         author='Peter Madigan',
         author_email='pmadigan@lbl.gov',
+        url='https://github.com/peter-madigan/reco3d',
         classifiers=[
             'Development Status :: 2 - Pre-Alpha',
             'Intended Audience :: Science/Research',

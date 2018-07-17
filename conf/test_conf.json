@@ -1,0 +1,15 @@
+{
+        "_test_hidden" : "This is a test configuration key that should not be imported into the OptionsTool:",
+        "test_key0" : "test_value0",
+        "test_overwrite" : "new_value",
+        "test_named_obj" : {
+                "test_key1" : "test_value1",
+                "test_named_subobj" : {
+                        "test_key2" : "test_value2",
+                        "test_int" : 100,
+                        "test_float" : 1.0,
+                        "test_list" : [0,1,2,3],
+                        "test_dict" : {"a" : 0, "b" : 1}
+                }
+        }
+}
