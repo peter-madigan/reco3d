@@ -54,6 +54,8 @@ order in which processes are added to the manager specifies the order of executi
 
 ## Structure
 `reco3d` is built out of the following objects:
+
+
 `reco3d.types`: classes used for passing data between reco3d objects
  - each has the following attributes:
    - consist of python `Number` objects or `Sequences` of other `reco3d.types` (insures fixed
