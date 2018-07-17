@@ -137,10 +137,11 @@ reco3d --- types --- basic_types --- * Empty *
         |              |
         |              |- larpix_converters --- SerialConverter(Converter)
         |                                    |- HDF5Converter(Converter)
+        |                                    |- JSONConverter(Converter)
         |
         |- processes --- basic_processes --- Process(object)
         |             |
-        |             |- larpix_processes --- LArPixFilter(Process)
+        |             |- larpix_processes --- LArPixHitReaderProcess(Process)
         |                                  |- LArPixCalibrationProcess(Process)
         |                                  |- LArPixDataWriterProcess(Process)
         |
