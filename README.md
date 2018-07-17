@@ -38,7 +38,7 @@ resources or optional resources. The processes and resources are then added to t
 order in which processes are added to the manager specifies the order of execution. The 
 `reco3d.Manager` then executes a series of stages:
  1. First the `config()` stage is executed. Each resource's `config()` method is executed,
- followed by each process's `config()` method. Resources are added to each process during this
+ followed by each process's `config()` method. Resources are checked by each process during this
  stage according to the specified requirements and options.
  2. The `start()` stage is executed next. Each resource's `start()` method is executed,
  followed by each process's `start()` method.
