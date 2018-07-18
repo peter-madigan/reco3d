@@ -3,10 +3,9 @@ from reco3d.tools.options import OptionsTool
 
 def test_OptionsTool_init():
     test_dict = {'a' : 0, 'b' : 1}
-    ot = OptionsTool(options_dict=test_dict, name='test')
+    ot = OptionsTool(options_dict=test_dict)
     assert ot['a'] == 0 and ot['b'] == 1
-    assert ot['name'] == 'test'
-    assert ot.get('a') == OptionsTool()
+    assert ot.get('a') == ot
 
 def test_OptionsTool_file_init():
     test_dict = {'a' : 0, 'test_overwrite' : 1}
@@ -20,10 +19,8 @@ def test_OptionsTool_file_init():
     assert type(ot['test_named_obj']) is dict
     assert type(ot.get('test_named_obj')) is OptionsTool
     obj_options = ot.get('test_named_obj')
-    assert obj_options['name'] == 'test_named_obj'
     assert obj_options['test_key1'] == 'test_value1'
     subobj_options = obj_options.get('test_named_subobj')
-    assert subobj_options['name'] == 'test_named_subobj'
     assert subobj_options['test_key2'] == 'test_value2'
     assert subobj_options['test_int'] == 100
     assert subobj_options['test_float'] == 1.0

@@ -1,5 +1,8 @@
 {
-        "_comment" : "This file contains default configuration settings for example_script.py. The structure of configuration files
-        is: json_data[<object class name>][<argument name>] = <argument value>. To configure objects that are owned by other
-        objects, use json_data[<parent object class name>][<child object class name>] = {<argument name> : <argument value>, ...}."
+        "_comment" : "This file contains default configuration settings for example_script.py. The structure of configuration files is: json_data[<object class name>][<argument name>] = <argument value>. To configure objects that are owned by other objects, use json_data[<parent object class name>][<child object class name>] = {<argument name> : <argument value>, ...}. All objects at lower levels inherit properties from objects at higher levels (e.g. all LoggingTool objects inherit properties from the first LoggingTool object)",
+
+        "LoggingTool" : {
+                        "outfile" : [false, "debug", ".log"],
+                        "stdout" : [true, "debug"]
+                        }
 }
