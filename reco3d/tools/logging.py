@@ -42,7 +42,7 @@ class LoggingTool(object):
 
         self.handlers = []
         self.name = name
-        self.logger = self.get_logger(name)
+        self._logger = self.get_logger(name)
 
         # load options
         self.level = self.options['level']
@@ -55,8 +55,8 @@ class LoggingTool(object):
         self.set_level(self.level)
 
         # add handlers
-        if len(self.logger.handlers) > 0:
-            self.handlers = self.logger.handlers
+        if len(self._logger.handlers) > 0:
+            self.handlers = self._logger.handlers
             self.warning('Logger already initialized - skipping handler init')
             # if handlers already initialized, skip handler initialization
         else:
@@ -84,14 +84,14 @@ class LoggingTool(object):
         fh = logging.FileHandler(filename)
         fh.setLevel(self.level_lookup[level])
         self.handlers += [fh]
-        self.logger.addHandler(fh)
+        self._logger.addHandler(fh)
 
     def add_streamhandler(self, stream, level):
         ''' Add a StreamHandler to current handlers list '''
         sh = logging.StreamHandler(stream)
         sh.setLevel(self.level_lookup[level])
         self.handlers += [sh]
-        self.logger.addHandler(sh)
+        self._logger.addHandler(sh)
 
     def set_format(self, format):
         ''' Create a formatter and apply to handlers '''
@@ -101,25 +101,25 @@ class LoggingTool(object):
 
     def set_level(self, level):
         ''' Set logger level '''
-        self.logger.setLevel(self.level_lookup[level])
+        self._logger.setLevel(self.level_lookup[level])
 
     def info(self, message):
         #print('info',message)
-        self.logger.info(str(message))
+        self._logger.info(str(message))
 
     def warning(self, message):
         #print('warning',message)
-        self.logger.warning(str(message))
+        self._logger.warning(str(message))
 
     def error(self, message):
         #print('error',message)
-        self.logger.error(str(message))
+        self._logger.error(str(message))
 
     def debug(self, message):
         #print('debug', message)
-        self.logger.debug(str(message))
+        self._logger.debug(str(message))
 
     def critical(self, message):
         #print('critical', message)
-        self.logger.critical(str(message))
+        self._logger.critical(str(message))
 
