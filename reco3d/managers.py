@@ -1,29 +1,39 @@
 from reco3d.tools.logging import LoggingTool
 
 class Manager(object):
+      req_opts = [] # list of required options (raise error if not found)
+      default_opts = {} # list of options arguments and default values
+
       def __init__(self, options):
             self.options = options
-            self.logger = LoggingTool(options.get(LoggingTool.__name__))
-            self.resources = ResourceManager(options.get(ResourceManager.__name__))
-            self.processes = ProcessManager(options.get(ProcessManager.__name__))
+            self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
+            self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
+            self.resources = ResourceManager(options.get('ResourceManager'))
+            self.processes = ProcessManager(options.get('ProcessManager'))
+            self.logger.debug('{} initialized'.format(self))
 
       def add_resources(self, *args, **kwargs):
             for resource in args:
                   self.resources.add(resource)
             for key, resource in kwargs.items():
                   self.resources.add(resource, key=key)
+            self.logger.debug('Resources added to Manager')
 
       def add_processes(self, *args):
             for process in args:
                   self.processes.add(process)
+            self.logger.debug('Processes added to Manager')
 
       def config(self):
             self.resources.config()
             self.processes.config()
+            self.logger.debug('config stage complete')
 
       def start(self):
             self.resources.start()
             self.processes.start()
+            self.logger.debug('start stage complete')
 
       def run(self):
             while True:
@@ -32,20 +42,29 @@ class Manager(object):
 
                   if not self.resources.continue_run(): break
                   if not self.processes.continue_run(): break
+            self.logger.debug('run stage complete')
 
       def finish(self):
             self.resources.finish()
             self.processes.finish()
+            self.logger.debug('finish stage complete')
             
       def cleanup(self):
             self.resources.cleanup()
             self.processes.cleanup()
+            self.logger.debug('cleanup stage complete')
 
 class ResourceManager(object):
+      req_opts = [] # list of required options (raise error if not found)
+      default_opts = {} # list of options arguments and default values
+
       def __init__(self, options):
             self.options = options
-            self.logger = LoggingTool(options.get(LoggingTool.__name__))
+            self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
+            self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self._resources = {}
+            self.logger.debug('{} initialized'.format(self))
 
       def __contains__(self, item):
             if isinstance(item, str):
@@ -68,31 +87,44 @@ class ResourceManager(object):
             if not resource_name in self._resources:
                   self._resources[resource_name] = resource
             else:
-                  raise ValueError('resource already exists in ResourceManager')
+                  err_msg = 'resource already exists in ResourceManager'
+                  self.error(err_msg)
+                  raise ValueError(err_msg)
 
       def config(self):
             for resource in self: resource.config()
+            self.logger.debug('config complete')
 
       def start(self):
             for resource in self: resource.start()
+            self.logger.debug('start complete')
 
       def run(self):
             for resource in self: resource.run()
+            self.logger.debug('run complete')
 
       def continue_run(self):
             return all([resource.continue_run() for resource in self])
 
       def finish(self):
             for resource in self: resource.finish()
+            self.logger.debug('finish complete')
 
       def cleanup(self):
             for resource in self: resource.cleanup()
+            self.logger.debug('cleanup complete')
 
 class ProcessManager(object):
+      req_opts = [] # list of required options (raise error if not found)
+      default_opts = {} # list of options arguments and default values
+
       def __init__(self, options):
             self.options = options
-            self.logger = LoggingTool(options.get(LoggingTool.__name__))
+            self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
+            self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self._processes = []
+            self.logger.debug('{} initialized'.format(self))
 
       def __contains__(self, item):
             if isinstance(item, str):
@@ -110,18 +142,23 @@ class ProcessManager(object):
 
       def config(self):
             for process in self: process.config()
+            self.logger.debug('config complete')
 
       def start(self):
             for process in self: process.start()
+            self.logger.debug('start complete')
 
       def run(self):
             for process in self: process.run()
+            self.logger.debug('run complete')
 
       def continue_run(self):
             return all([process.continue_run() for process in self])
 
       def finish(self):
             for process in self: process.finish()
+            self.logger.debug('finish complete')
 
       def cleanup(self):
             for process in self: process.cleanup()
+            self.logger.debug('cleanup complete')

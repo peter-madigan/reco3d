@@ -2,16 +2,21 @@ from reco3d.tools.logging import LoggingTool
 from reco3d.converters.basic_converters import Converter
 
 class Resource(object):
+    req_opts = [] # list of required options
+    default_opts = {} # dict of options with default values
+
     def __init__(self, options):
         self.options = options
-        self.logger = LoggingTool(options.get('LoggingTool'))
-        self.converter = Converter(options.get('Converter'))
+        self.options.check_req(self.req_opts)
+        self.options.set_default(self.default_opts)
+        self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
         self._read_queue = {} # pre-loaded data available to processes (refreshed every call to run() or start())
         self._write_queue = {} # data to be written once a condition has been met
         self._stack = {} # live data (typically updated every event loop and is modified by
                          # processes during event loop)
         self._stack_hold = {} # signal to resource to keep stack for another iteration
         self._cache = {} # passive data (speed up access to external resources, lookup only)
+        self.logger.debug('{} initialized'.format(self))
 
     def config(self):
         # do stuff

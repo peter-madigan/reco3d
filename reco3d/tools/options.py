@@ -13,21 +13,17 @@ class OptionsTool(object):
     corresponding to the object that will use those options. This allows objects to
     contain sub-objects that can be configured using child OptionsTools.
 
-    Creating a child OptionsTool is as easy as calling `grandparent.get('ChildName')`.
-
-    The `'name'` key is a special key that should not be used by objects utilizing an
-    options tool.
+    Creating a child OptionsTool is as easy as calling `parent.get('ChildName')`.
 
     When accessing a key, if the key does not exist in the OptionsTool, None is returned.
     '''
 
-    def __init__(self, options_dict={}, name=None, filename=None):
+    def __init__(self, options_dict={}, filename=None):
         '''
         Initialize the OptionsTool using a dict or file
         Note: file keys / values take precedence
         '''
         self._opt_dict = options_dict.copy()
-        self['name'] = name
         if not filename is None:
             self._load_from_file(filename)
 
@@ -72,55 +68,52 @@ class OptionsTool(object):
             return False
         return True
 
-    def __str__(self):
-        string = ''
-        if not 'name' in self or self['name'] is None:
-            string += 'OptionsTool(\n'
-        else:
-            string += self['name'] + '(\n'
-        if len(self) == 0:
-            string += '\tNone'
-        else:
-            substrings = []
-            for key in self:
-                if key is 'name':
-                    continue
-                elif isinstance(self[key], dict):
-                    substrings += ['\t' + str(self.get(key)).replace('\n','\n\t') + ',\n']
-                else:
-                    substrings += ['\t' + key + ' = ' + self[key] + ',\n']
-            string += ''.join(substrings)
-        string += '\t)'
-        return string
-
-
-    def get(self, name):
+    def check_req(self, req_opts):
         '''
-        Search through options dict for options that match name
-        Returns an OptionsTool created from sub dict, with correct name
+        Raise RunTimeError if OptionsTool does not contain all `req_opts`
         '''
-        if name in self:
-            if isinstance(self[name], dict):
-                return OptionsTool(options_dict=self[name], name=name)
-            else:
-                return OptionsTool()
-        else:
-            return OptionsTool()
+        if not all([opt_key in self for opt_key in req_opts]):
+            raise RuntimeError('missing required options')
 
-    def set(self, name=None, **kwargs):
+    def set_default(self, default_opts):
+        '''
+        Write default values into options
+        '''
+        for key, value in default_opts.items():
+            if self[key] is None:
+                self[key] = value
+
+    def get(self, key):
+        '''
+        Search through options dict for options that match key
+        Also apply option inheritance (propogate higher level options to lower
+        levels)
+        Returns an OptionsTool created from sub dict, with correct key
+        '''
+        inherit_opts_dict = self._opt_dict.copy()
+        options_dict = None
+        if key in self:
+            if isinstance(self[key], dict):
+                options_dict = self[key]
+        if not options_dict is None:
+            for new_key, new_value in options_dict.items():
+                inherit_opts_dict[new_key] = new_value
+        return OptionsTool(options_dict=inherit_opts_dict)
+
+    def set(self, key=None, **kwargs):
         '''
         Set an option value using kwargs
-        `name` key provides special access to a sub dict
+        `key` key provides special access to a sub dict
         '''
-        if name is None:
-            for key, value in kwargs.items():
-                self[key] = value
+        if key is None:
+            for arg, value in kwargs.items():
+                self[arg] = value
         else:
-            for key, value in kwargs.items():
+            for arg, value in kwargs.items():
                 try:
-                    self[name][key] = value
+                    self[key][arg] = value
                 except KeyError:
-                    self[name] = { key : value }
+                    self[key] = { arg : value }
 
     def _load_from_file(self, filename):
         '''
@@ -138,7 +131,7 @@ class OptionsTool(object):
                 with open(rel_path) as infile:
                     filedata = json.load(infile)
             else:
-                raise FileNotFoundError
+                raise FileNotFoundError('could not find configuration file')
 
         for key, value in filedata.items():
             self[key] = value

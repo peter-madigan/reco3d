@@ -19,7 +19,6 @@ args = parser.parse_args()
 # Set up the manager and initialize the main logger and the "grandparent" options tool
 options = OptionsTool(filename=args.options)
 logger = LoggingTool(options.get('LoggingTool'))
-logger.info(options)
 manager = Manager(options.get('Manager'))
 
 # Create a read-only serial file resource
