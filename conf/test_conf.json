@@ -9,7 +9,11 @@
                         "test_int" : 100,
                         "test_float" : 1.0,
                         "test_list" : [0,1,2,3],
-                        "test_dict" : {"a" : 0, "b" : 1}
+                        "test_dict" : {"a" : 0, "b" : 1},
+                        "test_inheritance" : 19
                 }
-        }
+        },
+        "test_named_subobj" : {
+                "test_inheritance" : 29
+                }
 }

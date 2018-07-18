@@ -7,6 +7,7 @@ class Manager(object):
       def __init__(self, options):
             self.options = options
             self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
             self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self.resources = ResourceManager(options.get('ResourceManager'))
             self.processes = ProcessManager(options.get('ProcessManager'))
@@ -60,6 +61,7 @@ class ResourceManager(object):
       def __init__(self, options):
             self.options = options
             self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
             self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self._resources = {}
             self.logger.debug('{} initialized'.format(self))
@@ -119,6 +121,7 @@ class ProcessManager(object):
       def __init__(self, options):
             self.options = options
             self.options.check_req(self.req_opts)
+            self.options.set_default(self.default_opts)
             self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self._processes = []
             self.logger.debug('{} initialized'.format(self))

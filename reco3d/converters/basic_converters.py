@@ -7,6 +7,7 @@ class Converter(object):
     def __init__(self, options):
         self.options = options
         self.options.check_req(self.req_opts)
+        self.options.set_default(self.default_opts)
         self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
         self.logger('{} initialized'.format(self))
 

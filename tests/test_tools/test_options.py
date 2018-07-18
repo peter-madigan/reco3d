@@ -20,10 +20,20 @@ def test_OptionsTool_file_init():
     assert type(ot.get('test_named_obj')) is OptionsTool
     obj_options = ot.get('test_named_obj')
     assert obj_options['test_key1'] == 'test_value1'
-    subobj_options = obj_options.get('test_named_subobj')
-    assert subobj_options['test_key2'] == 'test_value2'
-    assert subobj_options['test_int'] == 100
-    assert subobj_options['test_float'] == 1.0
-    assert subobj_options['test_list'] == [0,1,2,3]
-    assert subobj_options['test_dict'] == {'a':0, 'b':1}
+    subobj_options_top_level = ot.get('test_named_subobj')
+    assert subobj_options_top_level['test_inheritance'] == 29
+    subobj_options_low_level = obj_options.get('test_named_subobj')
+    assert subobj_options_low_level['test_key2'] == 'test_value2'
+    assert subobj_options_low_level['test_int'] == 100
+    assert subobj_options_low_level['test_float'] == 1.0
+    assert subobj_options_low_level['test_list'] == [0,1,2,3]
+    assert subobj_options_low_level['test_dict'] == {'a':0, 'b':1}
+    assert subobj_options_low_level['test_inheritance'] == 19
+
+def test_OptionsTool_check_req():
+    req_opts = ['c']
+    test_dict = {'a':0,'b':1}
+    ot = OptionsTool(options_dict=test_dict)
+    with pytest.raises(RuntimeError, message='should raise error - missing c key'):
+        ot.check_req(req_opts)
 

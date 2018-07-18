@@ -38,17 +38,18 @@ class LoggingTool(object):
     def __init__(self, options, name=None):
         self.options = options
         self.options.check_req(self.req_opts)
+        self.options.set_default(self.default_opts)
 
         self.handlers = []
         self.name = name
         self.logger = self.get_logger(name)
 
         # load options
-        self.level = self.get_option(options, 'level')
-        self.outfile_opts = self.get_option(options, 'outfile')
-        self.stdout_opts = self.get_option(options, 'stdout')
-        self.stderr_opts = self.get_option(options, 'stderr')
-        self.format = self.get_option(options, 'format')
+        self.level = self.options['level']
+        self.outfile_opts = self.options['outfile']
+        self.stdout_opts = self.options['stdout']
+        self.stderr_opts = self.options['stderr']
+        self.format = self.options['format']
 
         # set level
         self.set_level(self.level)
@@ -78,14 +79,6 @@ class LoggingTool(object):
         else:
             return logging.getLogger(name)
 
-    @classmethod
-    def get_option(cls, options, key):
-        ''' Grab option from OptionsTool. If it doesn't exist, use default '''
-        if options[key] is None:
-            return cls.default_opts[key]
-        else:
-            return options[key]
-
     def add_filehandler(self, filename, level):
         ''' Add a FileHandler to current handlers list '''
         fh = logging.FileHandler(filename)
@@ -103,7 +96,7 @@ class LoggingTool(object):
     def set_format(self, format):
         ''' Create a formatter and apply to handlers '''
         self.formatter = logging.Formatter(format)
-        for handler in self.logger.handlers:
+        for handler in self.handlers:
             handler.setFormatter(self.formatter)
 
     def set_level(self, level):

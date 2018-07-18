@@ -8,6 +8,7 @@ class Resource(object):
     def __init__(self, options):
         self.options = options
         self.options.check_req(self.req_opts)
+        self.options.set_default(self.default_opts)
         self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
         self._read_queue = {} # pre-loaded data available to processes (refreshed every call to run() or start())
         self._write_queue = {} # data to be written once a condition has been met

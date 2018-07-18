@@ -73,7 +73,15 @@ class OptionsTool(object):
         Raise RunTimeError if OptionsTool does not contain all `req_opts`
         '''
         if not all([opt_key in self for opt_key in req_opts]):
-            raise RunTimeError('Missing required options')
+            raise RuntimeError('missing required options')
+
+    def set_default(self, default_opts):
+        '''
+        Write default values into options
+        '''
+        for key, value in default_opts.items():
+            if self[key] is None:
+                self[key] = value
 
     def get(self, key):
         '''
@@ -123,7 +131,7 @@ class OptionsTool(object):
                 with open(rel_path) as infile:
                     filedata = json.load(infile)
             else:
-                raise FileNotFoundError
+                raise FileNotFoundError('could not find configuration file')
 
         for key, value in filedata.items():
             self[key] = value
