@@ -49,7 +49,7 @@ def test_LArPixHDF5Converter():
         expected = c.reco3d_type_to_hdf5(test_track)
         for name in c.datafile['tracks'][0].dtype.names:
             if bool(c.datafile['tracks'][0][name]):
-                if isinstance(c.datafile['tracks'][0][name], region_ref):
+                if type(c.datafile['tracks'][0][name]) == region_ref:
                     # ignore references
                     continue
                 else:
