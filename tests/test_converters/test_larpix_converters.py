@@ -9,7 +9,7 @@ def test_LArPixHDF5Converter():
     # test init
     opts = OptionsTool({'filename':'test.h5'})
     c = LArPixHDF5Converter(opts)
-    assert c.is_open == False
+    assert not c.is_open
     assert c.datafile is None
     assert c.read_idx == {'hits':0, 'events':0, 'tracks':0}
     assert c.write_idx == {'hits':0, 'events':0, 'tracks':0}
@@ -17,8 +17,8 @@ def test_LArPixHDF5Converter():
     try:
         # test opening file
         c.open()
-        assert c.is_open == True
-        assert type(c.datafile) == h5py.File
+        assert c.is_open
+        assert isinstance(c.datafile, h5py.File)
         for dataset_name in c.rev_type_lookup.keys():
             assert c.write_idx[dataset_name] == 0
 
@@ -37,8 +37,8 @@ def test_LArPixHDF5Converter():
             if bool(c.datafile['hits'][0][name]):
                 # ignore region references
                 assert c.datafile['hits'][0][name] == expected[name]
-        assert bool(c.datafile['hits'][0]['track_ref']) == False
-        assert bool(c.datafile['hits'][0]['event_ref']) == False
+        assert not bool(c.datafile['hits'][0]['track_ref'])
+        assert not bool(c.datafile['hits'][0]['event_ref'])
 
         # test writing track
         c.write(test_track)
@@ -49,7 +49,7 @@ def test_LArPixHDF5Converter():
         expected = c.reco3d_type_to_hdf5(test_track)
         for name in c.datafile['tracks'][0].dtype.names:
             if bool(c.datafile['tracks'][0][name]):
-                if type(c.datafile['tracks'][0][name]) == region_ref:
+                if isinstance(c.datafile['tracks'][0][name], region_ref):
                     # ignore references
                     continue
                 else:
