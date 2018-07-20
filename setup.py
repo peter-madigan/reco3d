@@ -18,10 +18,9 @@ setup(
         classifiers=[
             'Development Status :: 2 - Pre-Alpha',
             'Intended Audience :: Science/Research',
-            'Programming Language :: Python :: 2',
             'Programming Language :: Python :: 3',
         ],
         keywords='dune physics',
         packages=['reco3d'],
-        install_requires=['pytest']
+        install_requires=['pytest', 'h5py', 'numpy']
 )
