@@ -53,7 +53,7 @@ class Resource(object):
         # close files
         pass
 
-    def read(self, dtype):
+    def read(self, dtype, n=1):
         # fetch from read queue
         return None
 
@@ -69,26 +69,61 @@ class Resource(object):
         # attempt to store obj at loc, return True if successful, False if not
         return False
 
-    def pop(self, dtype):
+    def read_queue_dtypes(self):
+        # fetch a list of all data types in read queue
+        return self._read_queue.keys()
+
+    def stack_dtypes(self):
+        # fetch a list of all data types in stack
+        return self._stack.keys()
+
+    def write_queue_dtypes(self):
+        # fetch a list of all data types in write_queue
+        return self._write_queue.keys()
+
+    def pop(self, dtype, n=1):
         # grab object from active stack, else return None
         if dtype in self._stack.keys():
-            obj = self._stack[dtype][-1]
-            self._stack[dtype] = self._stack[dtype][:-1]
-            return obj
+            if n == -1:
+                obj = self._stack[dtype][:]
+                self._stack[dtype] = []
+                return obj
+            elif n == 1:
+                obj = self._stack[dtype][-1]
+                self._stack[dtype] = self._stack[dtype][:-1]
+                return obj
+            else:
+                obj = self._stack[dtype][-n:]
+                self._stack[dtype] = self._stack[dtype][:-n]
+                return obj
         return None
 
     def push(self, obj):
         # put object in active stack
-        dtype = type(obj)
-        if dtype in self._stack.keys():
-            self._stack[dtype].append(obj)
+        if obj is None:
+            return
+        if isinstance(obj, list):
+            dtype = type(obj[0])
+            if dtype in self._stack.keys():
+                self._stack[dtype] += obj
+            else:
+                self._stack[dtype] = obj
         else:
-            self._stack[dtype] = [obj]
+            dtype = type(obj)
+            if dtype in self._stack.keys():
+                self._stack[dtype].append(obj)
+            else:
+                self._stack[dtype] = [obj]
 
-    def peek(self, dtype):
+    def peek(self, dtype, n=1):
         # grab object from active stack, leaving stack intact
         if dtype in self._stack.keys():
-            return self._stack[dtype][-1]
+            if n == -1:
+                return self._stack[dtype][:].copy()
+            elif n == 1:
+                return self._stack[dtype][-1]
+            else:
+                return self._stack[dtype][-n:].copy()
         return None
 
     def clear(self, dtype=None):
