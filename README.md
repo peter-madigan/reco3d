@@ -21,6 +21,8 @@
  pytest
  ``` 
 
+## CI [![Build Status](https://travis-ci.org/peter-madigan/reco3d.svg?branch=master)](https://travis-ci.org/peter-madigan/reco3d)
+
 ## Execution
 The basic execution of a `reco3d` program involves a `reco3d.Manager`, along with an
 assortment of `reco3d.processes` and `reco3d.resources`. Broadly speaking, their roles in the
@@ -114,7 +116,8 @@ standard logging handlers, the `reco3d.tools.logging` module contains a `Logging
 The `LoggingTool` acts as a wrapper class for the python `Logger` object. All `LoggingTool`
 objects will provide `info()`, `warning()`, `error()`, `critical()`, and `debug()` methods.
 Configuring `StreamHandlers`, `FileHandlers`, and `Formatters` along with log levels will be
-performed through the `OptionsTool` argument passed into the `LoggingTool` at initialization.
+performed through the `OptionsTool` argument passed into the `LoggingTool` at initialization. Most
+base classes provide access to a logger object for inheriting classes.
 
 ### Map of included types with inheritance
 As of July 2018:
@@ -124,6 +127,8 @@ reco3d --- types --- basic_types --- * Empty *
         |         |- larpix_types --- Hit(object)
         |                          |- HitCollection(object)
         |                          |- Event(HitCollection)
+        |                          |- Track(HitCollection)
+        |                          |- Shower(HitCollection)
         |
         |- managers --- Manager(object)
         |            |- ResourceManager(object)
@@ -137,9 +142,7 @@ reco3d --- types --- basic_types --- * Empty *
         |
         |- converters --- basic_converters --- Converter(object)
         |              |
-        |              |- larpix_converters --- SerialConverter(Converter)
-        |                                    |- HDF5Converter(Converter)
-        |                                    |- JSONConverter(Converter)
+        |              |- larpix_converters --- LArPixHDF5Converter(Converter)
         |
         |- processes --- basic_processes --- Process(object)
         |             |
