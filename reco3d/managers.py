@@ -40,8 +40,10 @@ class Manager(object):
                   self.resources.run()
                   self.processes.run()
 
-                  if not self.resources.continue_run(): break
-                  if not self.processes.continue_run(): break
+                  if not self.resources.continue_run():
+                        break
+                  if not self.processes.continue_run():
+                        break
             self.logger.debug('run stage complete')
 
       def finish(self):
@@ -70,9 +72,8 @@ class ResourceManager(object):
             if isinstance(item, str):
                   # look for key
                   return item in self._resources.keys()
-            else:
-                  # look for object
-                  return item in self._resources.values()
+            # look for object
+            return item in self._resources.values()
 
       def __getitem__(self, key):
             return self._resources[key]
@@ -92,26 +93,31 @@ class ResourceManager(object):
                   raise ValueError(err_msg)
 
       def config(self):
-            for resource in self: resource.config()
+            for resource in self:
+                  resource.config()
             self.logger.debug('config complete')
 
       def start(self):
-            for resource in self: resource.start()
+            for resource in self:
+                  resource.start()
             self.logger.debug('start complete')
 
       def run(self):
-            for resource in self: resource.run()
+            for resource in self:
+                  resource.run()
             self.logger.debug('run complete')
 
       def continue_run(self):
             return all([resource.continue_run() for resource in self])
 
       def finish(self):
-            for resource in self: resource.finish()
+            for resource in self:
+                  resource.finish()
             self.logger.debug('finish complete')
 
       def cleanup(self):
-            for resource in self: resource.cleanup()
+            for resource in self:
+                  resource.cleanup()
             self.logger.debug('cleanup complete')
 
 class ProcessManager(object):
@@ -130,9 +136,8 @@ class ProcessManager(object):
             if isinstance(item, str):
                   # look for process of type
                   return item in [type(process).__name__ for process in self]
-            else:
-                  # look for specific process
-                  return item in [process for process in self]
+            # look for specific process
+            return item in [process for process in self]
 
       def __iter__(self):
             return iter(self._processes)
@@ -141,24 +146,29 @@ class ProcessManager(object):
             self._processes += [process]
 
       def config(self):
-            for process in self: process.config()
+            for process in self:
+                  process.config()
             self.logger.debug('config complete')
 
       def start(self):
-            for process in self: process.start()
+            for process in self:
+                  process.start()
             self.logger.debug('start complete')
 
       def run(self):
-            for process in self: process.run()
+            for process in self:
+                  process.run()
             self.logger.debug('run complete')
 
       def continue_run(self):
             return all([process.continue_run() for process in self])
 
       def finish(self):
-            for process in self: process.finish()
+            for process in self:
+                  process.finish()
             self.logger.debug('finish complete')
 
       def cleanup(self):
-            for process in self: process.cleanup()
+            for process in self:
+                  process.cleanup()
             self.logger.debug('cleanup complete')

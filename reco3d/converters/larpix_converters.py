@@ -89,7 +89,8 @@ class LArPixHDF5Converter(Converter):
         Looking at loc, return objects that match type
         If loc is None, return "next" object
         '''
-        if not dtype in self.type_lookup: return None
+        if not dtype in self.type_lookup:
+            return None
         if not self.is_open:
             self.open()
         dset_name = self.type_lookup[dtype]
