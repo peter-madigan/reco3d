@@ -24,11 +24,11 @@ class Process(object):
             if not req_key in self.resources:
                 err_msg = 'required resource {} missing'.format(req_key)
                 self.logger.error(err_msg)
-                raise RunTimeError(err_msg)
+                raise RuntimeError(err_msg)
             elif not type(self.resources[req_key]).__name__ in req_resource_types:
                 err_msg = 'resource {} type is not in allowed resource types'.format(req_key)
                 self.logger.error(err_msg)
-                raise RunTimeError(err_msg)
+                raise RuntimeError(err_msg)
 
     def start(self):
         pass
