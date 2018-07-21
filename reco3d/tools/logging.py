@@ -55,7 +55,7 @@ class LoggingTool(object):
         self.set_level(self.level)
 
         # add handlers
-        if len(self._logger.handlers) > 0:
+        if self._logger.handlers:
             self.handlers = self._logger.handlers
             self.warning('Logger already initialized - skipping handler init')
             # if handlers already initialized, skip handler initialization
