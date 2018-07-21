@@ -18,12 +18,15 @@ class OptionsTool(object):
     When accessing a key, if the key does not exist in the OptionsTool, None is returned.
     '''
 
-    def __init__(self, options_dict={}, filename=None):
+    def __init__(self, options_dict=None, filename=None):
         '''
         Initialize the OptionsTool using a dict or file
         Note: file keys / values take precedence
         '''
-        self._opt_dict = options_dict.copy()
+        if options_dict is None:
+            self._opt_dict = {}
+        else:
+            self._opt_dict = options_dict.copy()
         if not filename is None:
             self._load_from_file(filename)
 

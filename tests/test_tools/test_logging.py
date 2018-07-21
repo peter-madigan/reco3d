@@ -8,7 +8,7 @@ def test_LoggingTool_def_init(capsys):
     assert logger.name == 'test'
     assert len(logger.handlers) == 1
     assert logger.level == LoggingTool.default_opts['level']
-    assert logger.format == LoggingTool.default_opts['format']
+    assert logger.log_format == LoggingTool.default_opts['format']
     out, err = capsys.readouterr()
     logger.info('test')
     out, err = capsys.readouterr()

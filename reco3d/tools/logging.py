@@ -49,13 +49,13 @@ class LoggingTool(object):
         self.outfile_opts = self.options['outfile']
         self.stdout_opts = self.options['stdout']
         self.stderr_opts = self.options['stderr']
-        self.format = self.options['format']
+        self.log_format = self.options['format']
 
         # set level
         self.set_level(self.level)
 
         # add handlers
-        if len(self._logger.handlers) > 0:
+        if self._logger.handlers:
             self.handlers = self._logger.handlers
             self.warning('Logger already initialized - skipping handler init')
             # if handlers already initialized, skip handler initialization
@@ -68,7 +68,7 @@ class LoggingTool(object):
                 self.add_streamhandler(sys.stderr, self.stderr_opts[1])
 
         # set format
-        self.set_format(self.format)
+        self.set_format(self.log_format)
         self.debug('{} initialized'.format(self))
 
     @staticmethod
@@ -93,9 +93,9 @@ class LoggingTool(object):
         self.handlers += [sh]
         self._logger.addHandler(sh)
 
-    def set_format(self, format):
+    def set_format(self, log_format):
         ''' Create a formatter and apply to handlers '''
-        self.formatter = logging.Formatter(format)
+        self.formatter = logging.Formatter(log_format)
         for handler in self.handlers:
             handler.setFormatter(self.formatter)
 
@@ -122,4 +122,3 @@ class LoggingTool(object):
     def critical(self, message):
         #print('critical', message)
         self._logger.critical(str(message))
-

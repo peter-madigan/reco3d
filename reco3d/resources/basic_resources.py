@@ -19,80 +19,151 @@ class Resource(object):
         self.logger.debug('{} initialized'.format(self))
 
     def config(self):
-        # do stuff
         pass
 
     def start(self):
-        # open files
-        # fill cache
-        # queue up data (if needed)
         pass
 
     def run(self):
-        # write write queue (if necessary)
-        # clean up cache
-        # refresh stack
+        '''
+        Resource run() method refreshes stack unless there is a stack hold in place
+
+        Suggested uses of the run() method in inheriting classes could be writing the write queue, cleaning up
+        the cache, or prepare read queue data
+
+        '''
+        # refresh the stack
+        stacks_to_clear = []
         for dtype in self._stack.keys():
             if dtype in self._stack_hold and self._stack_hold[dtype]:
-                pass
+                continue
             else:
-                self.clear(dtype)
-        # prepare read queue
-        pass
+                stacks_to_clear += [dtype]
+        for dtype in stacks_to_clear:
+            self.clear(dtype)
 
     def continue_run(self):
-        # return True unless the event loop should be ended (e.g. EOF reached)
+        '''
+        Return false if the event loop should be ended (e.g. the EOF is reached)
+        This method is checked at the end of each event loop iteration
+        '''
         return True
 
     def finish(self):
-        # do any finalization
-        # flush buffers
+        '''
+        Finalize data after event loop (e.g. flush data to external resources)
+        '''
         pass
 
     def cleanup(self):
-        # close files
         pass
 
-    def read(self, dtype):
-        # fetch from read queue
+    def read(self, dtype, n=1):
+        ''' Fetch data from read queue '''
+        if not dtype in self._read_queue:
+            return None
+        if not self._read_queue[dtype]:
+            return None
+        if n == -1:
+            return_objs = self._read_queue[dtype]
+            self._read_queue[dtype] = []
+            return return_objs
+        elif n == 1:
+            return_obj = self._read_queue[dtype][0]
+            self._read_queue[dtype] = self._read_queue[dtype][1:]
+            return return_obj
+        elif n > 0:
+            return_objs = self._read_queue[dtype][:n]
+            self._read_queue[dtype] = self._read_queue[dtype][n:]
+            return return_objs
         return None
 
     def write(self, obj):
-        # put obj in write queue
-        pass
+        ''' Put object into write queue '''
+        if obj is None:
+            return
+        if not obj:
+            return
+        if isinstance(obj, list):
+            dtype = type(obj[0])
+            if not dtype in self._write_queue:
+                self._write_queue[dtype] = obj
+            else:
+                self._write_queue[dtype] += obj
+        else:
+            dtype = type(obj)
+            if not dtype in self._write_queue:
+                self._write_queue[dtype] = [obj]
+            else:
+                self._write_queue[dtype] += [obj]
 
-    def get(self, loc, id=None):
-        # return object at loc that matches id, else return none
+    def get(self, loc, dtype=None):
+        ''' Return object at loc that matches datatype, else return none '''
         return None
 
     def set(self, loc, obj):
-        # attempt to store obj at loc, return True if successful, False if not
+        ''' Attempt to store obj at loc, return True if successful, False if not '''
         return False
 
-    def pop(self, dtype):
-        # grab object from active stack, else return None
+    def read_queue_dtypes(self):
+        ''' Fetch a list of all data types in read queue '''
+        return self._read_queue.keys()
+
+    def stack_dtypes(self):
+        ''' Fetch a list of all data types in stack '''
+        return self._stack.keys()
+
+    def write_queue_dtypes(self):
+        ''' Fetch a list of all data types in write_queue '''
+        return self._write_queue.keys()
+
+    def pop(self, dtype, n=1):
+        ''' Grab object from active stack, else return None '''
         if dtype in self._stack.keys():
-            obj = self._stack[dtype][-1]
-            self._stack[dtype] = self._stack[dtype][:-1]
-            return obj
+            if n == -1:
+                obj = self._stack[dtype][:]
+                self._stack[dtype] = []
+                return obj
+            elif n == 1:
+                obj = self._stack[dtype][-1]
+                self._stack[dtype] = self._stack[dtype][:-1]
+                return obj
+            else:
+                obj = self._stack[dtype][-n:]
+                self._stack[dtype] = self._stack[dtype][:-n]
+                return obj
         return None
 
     def push(self, obj):
-        # put object in active stack
-        dtype = type(obj)
-        if dtype in self._stack.keys():
-            self._stack[dtype].append(obj)
+        ''' Put object in active stack '''
+        if obj is None:
+            return
+        if isinstance(obj, list):
+            dtype = type(obj[0])
+            if dtype in self._stack.keys():
+                self._stack[dtype] += obj
+            else:
+                self._stack[dtype] = obj
         else:
-            self._stack[dtype] = [obj]
+            dtype = type(obj)
+            if dtype in self._stack.keys():
+                self._stack[dtype].append(obj)
+            else:
+                self._stack[dtype] = [obj]
 
-    def peek(self, dtype):
-        # grab object from active stack, leaving stack intact
+    def peek(self, dtype, n=1):
+        ''' Grab object from active stack, leaving stack intact '''
         if dtype in self._stack.keys():
-            return self._stack[dtype][-1]
+            if n == -1:
+                return self._stack[dtype][:].copy()
+            elif n == 1:
+                return self._stack[dtype][-1]
+            else:
+                return self._stack[dtype][-n:].copy()
         return None
 
     def clear(self, dtype=None):
-        # refresh active stack (occurs automatically every call to run() unless there is a stack_hold)
+        ''' Refresh active stack (occurs automatically every call to run() unless there is a stack_hold) '''
         if dtype is None:
             self._stack = {}
         elif dtype in self._stack.keys():
@@ -101,6 +172,6 @@ class Resource(object):
             pass
 
     def hold(self, dtype):
-        # request hold on stack refresh, return false if not possible
+        ''' Request hold on stack refresh, return false if not possible '''
         self._stack_hold[dtype] = True
         return self._stack_hold[dtype]

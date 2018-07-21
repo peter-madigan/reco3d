@@ -94,7 +94,7 @@ def test_LArPixHDF5Converter():
         assert c.read_idx['events'] == 1
 
         c.close()
-        assert c.is_open == False
+        assert not c.is_open
 
     finally:
         os.remove('test.h5')
