@@ -4,7 +4,7 @@ from reco3d.processes.basic_processes import Process
 
 class LArPixDataReaderProcess(Process):
     req_opts = Process.req_opts + []
-    default_ops = reco3d_pytools.combine_dicts(\
+    default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'dtypes' : ['Hit'], # list of data type names to try and read (None reads all types in resource)
                                 'max' : 1 }) # how many objects to read (-1 reads all from resouce queue - not recommended)
 
@@ -33,6 +33,7 @@ class LArPixDataReaderProcess(Process):
         super().run()
 
         obj = None
+        self.logger.debug(self.max)
         if self.dtypes is None:
             for dtype in self.resources['in_resource'].read_queue_dtypes():
                 obj = self.resources['in_resource'].read(dtype, n=self.max)
@@ -73,9 +74,9 @@ class LArPixCalibrationProcess(Process):
         if hit is None:
             return
 
-        calib_hit = self.do_calibrations(hits)
+        calib_hits = self.do_calibrations(hits)
 
-        self.resources['data_resource'].push(hits)
+        self.resources['data_resource'].push(calib_hits)
 
     def do_calibrations(self, hits):
         ''' Apply calibrations given by options '''

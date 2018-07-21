@@ -23,3 +23,10 @@ class TestResource(Resource):
         if self.max_reads is None:
             return parent_result
         return (not self.read_counter > self.max_reads) and parent_result
+
+    def read(self, dtype, n=1):
+        if n == -1:
+            self.read_counter += len(self._read_queue[dtype])
+        else:
+            self.read_counter += n
+        return super().read(dtype, n)

@@ -33,11 +33,14 @@ class Resource(object):
 
         '''
         # refresh the stack
+        stacks_to_clear = []
         for dtype in self._stack.keys():
             if dtype in self._stack_hold and self._stack_hold[dtype]:
-                pass
+                continue
             else:
-                self.clear(dtype)
+                stacks_to_clear += [dtype]
+        for dtype in stacks_to_clear:
+            self.clear(dtype)
 
     def continue_run(self):
         '''
@@ -63,17 +66,14 @@ class Resource(object):
             return None
         if n == -1:
             return_objs = self._read_queue[dtype]
-            read_counter += len(return_objs)
             self._read_queue[dtype] = []
             return return_objs
         elif n == 1:
             return_obj = self._read_queue[dtype][0]
-            read_counter += 1
             self._read_queue[dtype] = self._read_queue[dtype][1:]
             return return_obj
         elif n > 0:
             return_objs = self._read_queue[dtype][:n]
-            read_counter += len(return_objs)
             self._read_queue[dtype] = self._read_queue[dtype][n:]
             return return_objs
         return None
@@ -97,8 +97,8 @@ class Resource(object):
             else:
                 self._write_queue[dtype] += [obj]
 
-    def get(self, loc, id=None):
-        ''' Return object at loc that matches id, else return none '''
+    def get(self, loc, dtype=None):
+        ''' Return object at loc that matches datatype, else return none '''
         return None
 
     def set(self, loc, obj):

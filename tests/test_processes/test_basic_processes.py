@@ -13,9 +13,12 @@ def test_Process_init():
     with pytest.raises(RuntimeError, message='should fail - missing a resource'):
         process.config()
     process = Process(OptionsTool(), opt_resource=resource0, req_resource=resource1, missing_resource=resource2)
+    assert process.resources['opt_resource'] == resource0
+    assert process.resources['req_resource'] == resource1
+    assert process.resources['missing_resource'] == resource2
+
     process.config()
     process.run()
     process.continue_run()
     process.finish()
     process.cleanup()
-
