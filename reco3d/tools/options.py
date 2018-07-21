@@ -44,7 +44,7 @@ class OptionsTool(object):
         '''
         ignores all keys starting with _
         '''
-        if key[0] is '_':
+        if key[0] == '_':
             return
         self._opt_dict[key] = value
 
@@ -58,7 +58,7 @@ class OptionsTool(object):
         return key in self._opt_dict.keys()
 
     def __eq__(self, other):
-        if type(self) != type(other):
+        if not isinstance(self, type(other)):
             return False
         elif any([not key in other for key in self]):
             return False
