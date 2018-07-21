@@ -20,7 +20,7 @@ def test_LArPixDataReaderProcess():
     in_resource._read_queue[reco3d_types.Hit] = [test_hit]
     process.run()
     assert not in_resource._read_queue[reco3d_types.Hit]
-    assert len(out_resource._stack[reco3d_types.Hit])
+    assert len(out_resource._stack[reco3d_types.Hit]) == 1
     assert out_resource._stack[reco3d_types.Hit][0] == test_hit
     in_resource.run()
     out_resource.run()
