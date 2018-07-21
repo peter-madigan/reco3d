@@ -21,7 +21,10 @@
  pytest
  ``` 
 
-## CI [![Build Status](https://travis-ci.org/peter-madigan/reco3d.svg?branch=master)](https://travis-ci.org/peter-madigan/reco3d)
+## CI
+
+[![CodeFactor](https://www.codefactor.io/repository/github/peter-madigan/reco3d/badge)](https://www.codefactor.io/repository/github/peter-madigan/reco3d)
+[![Build Status](https://travis-ci.org/peter-madigan/reco3d.svg?branch=master)](https://travis-ci.org/peter-madigan/reco3d)
 
 ## Execution
 The basic execution of a `reco3d` program involves a `reco3d.Manager`, along with an
@@ -94,7 +97,7 @@ order in which processes are added to the manager specifies the order of executi
  - access to data is provided by the methods below
    - `read(dtype)`: grab next read object of data type `dtype` in read queue
    - `write(obj)`: put an object `obj` in the write queue
-   - `get(loc, id)`: fetch object at `loc` that matches `id`
+   - `get(loc, dtype)`: fetch object at `loc` that of type dtype
    - `set(loc, obj)`: replace object at `loc` with `obj`
    - `pop(dtype)`: grab next object in active stack, removing it from resource
    - `push(obj)`: insert object `obj` into the active stack
@@ -146,11 +149,14 @@ reco3d --- types --- basic_types --- * Empty *
         |
         |- processes --- basic_processes --- Process(object)
         |             |
-        |             |- larpix_processes --- LArPixHitReaderProcess(Process)
+        |             |- larpix_processes --- LArPixDataReaderProcess(Process)
         |                                  |- LArPixCalibrationProcess(Process)
         |                                  |- LArPixDataWriterProcess(Process)
+        |                                  |- LArPixEventBuilderProcess(Process)
         |
         |- tools --- logging --- LoggingTool(object)
                   |
                   |- options --- OptionsTool(object)
+                  |
+                  |- python
 ```
