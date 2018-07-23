@@ -12,6 +12,11 @@ import numpy as np
 
 region_ref = h5py.special_dtype(ref=h5py.RegionReference)
 
+class LArPixSerialConverter(Converter):
+    '''
+    A Converter-type class for reading from ROOT and HDF5 files produced by the dat2h5.py script
+    '''
+
 class LArPixHDF5Converter(Converter):
     '''
     A Converter-type class for handling two-way communication with an HDF5 file used for reconstruction

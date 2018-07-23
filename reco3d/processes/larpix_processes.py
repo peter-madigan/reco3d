@@ -10,7 +10,7 @@ class LArPixDataReaderProcess(Process):
 
     opt_resources = {}
     req_resources = {
-        'in_resource': ['LArPixSerialDataResource','LArPixDataResource'],
+        'in_resource': ['Resource','LArPixSerialDataResource','LArPixDataResource'],
         'out_resource': ['LArPixDataResource']
         }
 
@@ -53,7 +53,7 @@ class LArPixCalibrationProcess(Process):
 
     opt_resources = {}
     req_resources = {
-        'data_resource': ['LArPixSerialDataResource','LArPixDataResource'],
+        'data_resource': ['Resource','LArPixSerialDataResource','LArPixDataResource'],
         'calib_resource': ['LArPixCalibrationDataResource']
         }
 
@@ -92,7 +92,7 @@ class LArPixDataWriterProcess(Process):
 
     opt_resouces = {}
     req_resources = {
-        'in_resource': ['LArPixSerialDataResource','LArPixDataResource'],
+        'in_resource': ['Resource','LArPixSerialDataResource','LArPixDataResource'],
         'out_resource': ['LArPixDataResource']
         }
 

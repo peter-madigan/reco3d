@@ -27,6 +27,7 @@ class Resource(object):
     def run(self):
         '''
         Resource run() method refreshes stack unless there is a stack hold in place
+        Holds expire after every call to run
 
         Suggested uses of the run() method in inheriting classes could be writing the write queue, cleaning up
         the cache, or prepare read queue data
@@ -36,9 +37,10 @@ class Resource(object):
         stacks_to_clear = []
         for dtype in self._stack.keys():
             if dtype in self._stack_hold and self._stack_hold[dtype]:
-                continue
+                pass
             else:
                 stacks_to_clear += [dtype]
+            self._stack_hold[dtype] = False
         for dtype in stacks_to_clear:
             self.clear(dtype)
 
@@ -118,20 +120,24 @@ class Resource(object):
         return self._write_queue.keys()
 
     def pop(self, dtype, n=1):
-        ''' Grab object from active stack, else return None '''
+        '''
+        Grab object from active stack, else return None
+        If grabbing multiple objects, a list of objects is returned with an order
+        as though you had called [pop(dtype) for _ in range(n)]
+        '''
         if dtype in self._stack.keys():
             if n == -1:
-                obj = self._stack[dtype][:]
+                obj = reversed(self._stack[dtype][:])
                 self._stack[dtype] = []
-                return obj
+                return list(obj)
             elif n == 1:
                 obj = self._stack[dtype][-1]
                 self._stack[dtype] = self._stack[dtype][:-1]
                 return obj
             else:
-                obj = self._stack[dtype][-n:]
+                obj = reversed(self._stack[dtype][-n:])
                 self._stack[dtype] = self._stack[dtype][:-n]
-                return obj
+                return list(obj)
         return None
 
     def push(self, obj):
@@ -155,11 +161,11 @@ class Resource(object):
         ''' Grab object from active stack, leaving stack intact '''
         if dtype in self._stack.keys():
             if n == -1:
-                return self._stack[dtype][:].copy()
+                return list(reversed(self._stack[dtype][:].copy()))
             elif n == 1:
                 return self._stack[dtype][-1]
             else:
-                return self._stack[dtype][-n:].copy()
+                return list(reversed(self._stack[dtype][-n:].copy()))
         return None
 
     def clear(self, dtype=None):
