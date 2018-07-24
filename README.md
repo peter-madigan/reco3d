@@ -101,6 +101,7 @@ order in which processes are added to the manager specifies the order of executi
    - `set(loc, obj)`: replace object at `loc` with `obj`
    - `pop(dtype)`: grab next object in active stack, removing it from resource
    - `push(obj)`: insert object `obj` into the active stack
+   - `peek(dtype)`: grab next object in active stack without removing it from resource
    - `purge(dtype)`: clear active data of data type `dtype`. If `dtype` in `None`, clear all.
    This method is typically called at every `run()` call
    - `preserve(dtype)`: ask to hold active data of data type for another iteration
