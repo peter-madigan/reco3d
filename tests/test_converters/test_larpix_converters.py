@@ -1,7 +1,8 @@
 import pytest
 import h5py
+import numpy as np
 import os
-from reco3d.converters.larpix_converters import (region_ref, LArPixHDF5Converter)
+from reco3d.converters.larpix_converters import (region_ref, LArPixHDF5Converter, LArPixSerialConverter)
 from reco3d.tools.options import OptionsTool
 from reco3d.types.larpix_types import (Hit, Event, Track)
 
@@ -96,5 +97,53 @@ def test_LArPixHDF5Converter():
         c.close()
         assert not c.is_open
 
+    finally:
+        os.remove('test.h5')
+
+def test_LArPixSerialConverter():
+    # test init
+    opts = OptionsTool({'filename':'test.h5'})
+    c = LArPixSerialConverter(opts)
+    assert not c.is_open
+    assert c.datafile is None
+    assert c.read_idx == 0
+
+    try:
+        # test opening file
+        c.open()
+        assert c.is_open
+        assert isinstance(c.datafile, h5py.File)
+
+        test_data0 = np.array(list(range(max(c._name_lookup.keys())+1)), dtype=np.int64)
+        test_data1 = np.array(list(reversed(range(max(c._name_lookup.keys())+1))), dtype=np.int64)
+        test_data = np.vstack([test_data0, test_data1])
+        c.datafile.create_dataset('data', data=test_data)
+
+        # test reading data
+        assert c.read(int) is None
+        read0 = c.read(Hit)
+        assert c.read_idx == 1
+        assert read0.channelid == test_data0[c._col_lookup['channelid']]
+        assert read0.chipid == test_data0[c._col_lookup['chipid']]
+        assert read0.px == test_data0[c._col_lookup['pixelx']]
+        assert read0.py == test_data0[c._col_lookup['pixely']]
+        assert read0.ts == test_data0[c._col_lookup['timestamp']]
+        read1 = c.read(Hit)
+        assert c.read_idx == 2
+        assert read1.channelid == test_data1[c._col_lookup['channelid']]
+        assert read1.chipid == test_data1[c._col_lookup['chipid']]
+        assert read1.px == test_data1[c._col_lookup['pixelx']]
+        assert read1.py == test_data1[c._col_lookup['pixely']]
+        assert read1.ts == test_data1[c._col_lookup['timestamp']]
+        assert c.read(Hit) is None
+        assert c.read(Hit, loc=0) == read0
+
+        # test writing data
+        assert not c.write(int)
+        assert not c.write(Hit(0,1,2,3,4,5))
+
+        # test close
+        c.close()
+        assert not c.is_open
     finally:
         os.remove('test.h5')

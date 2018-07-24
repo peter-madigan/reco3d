@@ -3,6 +3,19 @@ import reco3d.types as reco3d_types
 from reco3d.processes.basic_processes import Process
 
 class LArPixDataReaderProcess(Process):
+    '''
+    This process reads a specified number of objects from the `in_resource` and places them in
+    the `out_resource` stack
+    options:
+     - `dtypes`: list of objects to try to read from in resource (default: `Hit`). If `None`, reads
+     all data types in resource
+     - `max`: max number of objects to read from resource on each event loop iteration (default: `1`).
+     If `-1`, reads all objects in resource queue
+
+    resources:
+     - `in_resource`: resource to read from. Accepted types: all
+     - `out_resource`: resource to fill stack. Accepted types: all
+    '''
     req_opts = Process.req_opts + []
     default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'dtypes' : ['Hit'], # list of data type names to try and read (None reads all types in resource)
@@ -10,8 +23,8 @@ class LArPixDataReaderProcess(Process):
 
     opt_resources = {}
     req_resources = {
-        'in_resource': ['LArPixSerialDataResource','LArPixDataResource'],
-        'out_resource': ['LArPixDataResource']
+        'in_resource': None,
+        'out_resource': None,
         }
 
     def config(self):
@@ -46,6 +59,20 @@ class LArPixDataReaderProcess(Process):
         self.resources['out_resource'].push(obj)
 
 class LArPixCalibrationProcess(Process):
+    '''
+    This process grabs a specified number of Hits from the data resource stack and applies a variety
+    of calibrations to the Hit. It then places them back into the data resource stack
+    options:
+     - `calibration`: list of calibrations to apply to hit (default: []). Currently no calibrations
+     are implemented
+     - `max`: max number of Hits to read from resource on each event loop iteration (default: `1`).
+     If `-1`, reads all objects in resource queue
+
+    resources:
+     - `calib_resource`: resource to read calibration data from. Accepted types: `LArPixCalibrationDataResource` only
+     - `data_resource`: resource to provide stack. Accepted types: all
+
+    '''
     req_opts = Process.req_opts + []
     default_ops = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'calibrations' : [], # list of calibrations to apply
@@ -53,11 +80,12 @@ class LArPixCalibrationProcess(Process):
 
     opt_resources = {}
     req_resources = {
-        'data_resource': ['LArPixSerialDataResource','LArPixDataResource'],
+        'data_resource': None,
         'calib_resource': ['LArPixCalibrationDataResource']
         }
 
     def config(self):
+        ''' Apply options to process '''
         super().config()
 
         self.calibrations = self.options['calibrations']
@@ -85,15 +113,28 @@ class LArPixCalibrationProcess(Process):
         raise NotImplementedError
 
 class LArPixDataWriterProcess(Process):
+    '''
+    This process grabs objects in the in resource stack and puts them in the out resource write queue
+    options:
+     - `dtypes`: list of data types to grab from stack and put into the write queue. None attempts to write all
+     objects in stack
+     - `max`: max number of objects to write on each event loop iteration (default: `-1`). If `-1`, writes all
+     objects in resource queue
+
+    resources:
+     - `in_resource`: resource to grad from stack. Accepted types: all
+     - `out_resource`: resource to write to. Accepted types: all
+
+    '''
     req_opts = Process.req_opts + []
     default_ops = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'dtypes' : None, # which data types to write (None attempts to write all object types)
-                                'max' : 1 }) # max number of data objects to write in each loop (None write all objects)
+                                'max' : -1 }) # max number of data objects to write in each loop (-1 write all objects)
 
     opt_resouces = {}
     req_resources = {
-        'in_resource': ['LArPixSerialDataResource','LArPixDataResource'],
-        'out_resource': ['LArPixDataResource']
+        'in_resource': None,
+        'out_resource': None
         }
 
     def config(self):
@@ -127,6 +168,19 @@ class LArPixDataWriterProcess(Process):
         self.resources['out_resource'].write(obj)
 
 class LArPixEventBuilderProcess(Process):
+    '''
+    This process assembles Hits in the in resource stack into Events. An Event is selected based on:
+     - `nhit > min_nhit`
+     - max separation between hits is no more than `dt_cut` ns
+    options:
+     - `max_nhit`: maximum number of hits in an event (-1 sets no upper limit)
+     - `min_nhit`: minimum number of hits in an event
+     - `dt_cut`: specifies Hit separation cut in ns
+
+    resources:
+     - `data_resource`: resource to provide stack. Accepted types: all
+
+    '''
     req_opts = Process.req_opts + []
     default_ops = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'max_nhit' : -1, # max number of hits in an event (-1 sets no limit)
@@ -135,7 +189,7 @@ class LArPixEventBuilderProcess(Process):
                                                    # (otherwise splits into two events)
     opt_resources = {}
     req_resources = {
-        'data_resource': ['LArPixDataResource']
+        'data_resource': None
         }
 
     def config(self):

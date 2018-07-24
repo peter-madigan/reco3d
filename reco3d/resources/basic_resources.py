@@ -1,5 +1,43 @@
+'''
+This module contains the base Resource class
+
+Resources handle the storage and access of data for Processes.
+
+Each Resource class has the following methods and attributes:
+ - a `req_opts` attribute that is a list of required option keys. If an OptionsTool is passed into
+ the Resource with all of these keys, a RuntimeError is raised
+ - a `default_opts` attribute that is a dict of all options with default values
+ - a `config()` method. Typically, this sets up configuration attributes and creates Converter objects
+ - a `start()` method. Typically, this opens Converter objects and pre-loads data before the event loop
+ - a `continue_run()` method that returns False if the event loop should be halted
+ - a `run()` method that is executed every event loop
+ - a `finish()` method. Typically, this flushes write data to Converter objects
+ - a `cleanup()` method. Typically, this closes Converter objects
+ - a `get()` and `set()` method for accessing static data (not implemented in basic_resources.Resource)
+ - a `read()` and `write()` method for accessing Converter data (implemented in basic_resources.Resource)
+ - a `pop()`, `push()`, `peek()`, and `purge()` method for accessing stack data (implemented in basic_resources.Resource)
+ - a `preserve()` method for keeping stack data for an additional event loop (implemented in basic_resources.Resource)
+ - a `read_queue_dtypes()`, `write_queue_dtypes()`, and `stack_dtypes()` method for accessing data types within respective
+ objects
+
+Inheritance from the basic_resource.Resource class provides:
+ - a `logger` object of type `LoggingTool`
+ - an `options` object of type `OptionsTool`
+ - a `_read_queue` dict that provides data to the `read()` method. The keys in this dict are datatypes
+ and the values are lists of data objects
+ - a `_write_queue` dict that is filled by the `write()` method. The keys in this dict are datatypes
+ and the values are lists of data objects
+ - a `_stack` dict that is accessed via `pop()`, `push()`, `peek()`, and `purge()` methods. The keys in this dict
+ are datatypes and the values are lists of data objects. The each datatype list is cleared after calling
+ `Resource.run()` unless `_stack_hold[<dtype>]` is `True`.
+ - a `_stack_hold` dict that is accessed via the `preserve()` method. The keys in this dict are datatypes
+ and the values are T/F depending on if a stack hold has been placed for this event loop iteration
+ - a `_cache` dict that can be used to provide quicker data access. There is no standardization of the
+ keys and value for this object
+
+'''
+
 from reco3d.tools.logging import LoggingTool
-from reco3d.converters.basic_converters import Converter
 
 class Resource(object):
     req_opts = [] # list of required options
@@ -27,6 +65,7 @@ class Resource(object):
     def run(self):
         '''
         Resource run() method refreshes stack unless there is a stack hold in place
+        Holds expire after every call to run
 
         Suggested uses of the run() method in inheriting classes could be writing the write queue, cleaning up
         the cache, or prepare read queue data
@@ -36,11 +75,12 @@ class Resource(object):
         stacks_to_clear = []
         for dtype in self._stack.keys():
             if dtype in self._stack_hold and self._stack_hold[dtype]:
-                continue
+                pass
             else:
                 stacks_to_clear += [dtype]
+            self._stack_hold[dtype] = False
         for dtype in stacks_to_clear:
-            self.clear(dtype)
+            self.purge(dtype)
 
     def continue_run(self):
         '''
@@ -118,20 +158,24 @@ class Resource(object):
         return self._write_queue.keys()
 
     def pop(self, dtype, n=1):
-        ''' Grab object from active stack, else return None '''
+        '''
+        Grab object from active stack, else return None
+        If grabbing multiple objects, a list of objects is returned with an order
+        as though you had called [pop(dtype) for _ in range(n)]
+        '''
         if dtype in self._stack.keys():
             if n == -1:
-                obj = self._stack[dtype][:]
+                obj = reversed(self._stack[dtype][:])
                 self._stack[dtype] = []
-                return obj
+                return list(obj)
             elif n == 1:
                 obj = self._stack[dtype][-1]
                 self._stack[dtype] = self._stack[dtype][:-1]
                 return obj
             else:
-                obj = self._stack[dtype][-n:]
+                obj = reversed(self._stack[dtype][-n:])
                 self._stack[dtype] = self._stack[dtype][:-n]
-                return obj
+                return list(obj)
         return None
 
     def push(self, obj):
@@ -155,14 +199,14 @@ class Resource(object):
         ''' Grab object from active stack, leaving stack intact '''
         if dtype in self._stack.keys():
             if n == -1:
-                return self._stack[dtype][:].copy()
+                return list(reversed(self._stack[dtype][:].copy()))
             elif n == 1:
                 return self._stack[dtype][-1]
             else:
-                return self._stack[dtype][-n:].copy()
+                return list(reversed(self._stack[dtype][-n:].copy()))
         return None
 
-    def clear(self, dtype=None):
+    def purge(self, dtype=None):
         ''' Refresh active stack (occurs automatically every call to run() unless there is a stack_hold) '''
         if dtype is None:
             self._stack = {}
@@ -171,7 +215,7 @@ class Resource(object):
         else:
             pass
 
-    def hold(self, dtype):
+    def preserve(self, dtype):
         ''' Request hold on stack refresh, return false if not possible '''
         self._stack_hold[dtype] = True
         return self._stack_hold[dtype]

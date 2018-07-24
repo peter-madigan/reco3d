@@ -1,7 +1,11 @@
 '''
-This module contains converters used by LArPix reconstruction and analysis
-
+This module contains converters used by LArPix reconstruction and analysis.
 The module requirements are `h5py` and `numpy`.
+
+LArPixDataConverter handles reading and writing to "larpix analysis files" which contain event,
+track, and hit data.
+
+LArPixSerialConverter handles reading from "larpix serial files" produces by the dat2h5.py script.
 
 '''
 from reco3d.converters.basic_converters import Converter
@@ -12,6 +16,97 @@ import numpy as np
 
 region_ref = h5py.special_dtype(ref=h5py.RegionReference)
 
+class LArPixSerialConverter(Converter):
+    '''
+    A Converter-type class for reading from ROOT and HDF5 files produced by the dat2h5.py script
+    Currently only reading Hit objects from HDF5 files is supported
+    options:
+     - `"filename"` : path to serial file to be read from
+
+    Locating objects: hits are indexed according to their position in the serial data stream to look
+    up a specific hit use `loc=<row index>`
+
+    '''
+    req_opts = Converter.req_opts + ['filename']
+    default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {})
+
+    _name_lookup = { # col: name of hdf5 serial file
+        0 : 'channelid',
+        1 : 'chipid',
+        2 : 'pixelid',
+        3 : 'pixelx',
+        4 : 'pixely',
+        5 : 'raw_adc',
+        6 : 'raw_timestamp',
+        7 : 'adc',
+        8 : 'timestamp',
+        9 : 'serialblock',
+        10 : 'v',
+        11 : 'pdst_v'
+        }
+    _col_lookup = dict([(name, col) for col, name in _name_lookup.items()])
+
+    def __init__(self, options):
+        super().__init__(options)
+        self.filename = self.options['filename']
+        self.is_open = False
+        self.datafile = None
+        self.read_idx = 0
+
+        self.logger.debug('{} initialized'.format(self))
+
+    def open(self): # Converter method
+        ''' Open converter (typically occurs during config phase) '''
+        if not self.is_open:
+            # open file
+            self.datafile = h5py.File(self.filename)
+        self.is_open = True
+        self.logger.debug('{} opened'.format(self))
+
+    def close(self): # Converter method
+        ''' Close converter (typically occurs during cleanup phase) '''
+        if self.is_open:
+            self.datafile.close()
+        self.is_open = False
+        self.logger.debug('{} closed'.format(self))
+
+    def read(self, dtype, loc=None): # Converter method
+        '''
+        Looking at `loc`, return objects that match type
+        If `loc` is `None`, return "next" `Hit`
+        If `dtype` is other than `Hit`, logs error and returns `None`
+        '''
+        if not dtype == reco3d_types.Hit:
+            self.logger.error('LArPixSerialConverter does not support reading non-Hit types')
+            return None
+        if not self.is_open:
+            self.open()
+        read_idx = loc
+        if read_idx is None:
+            read_idx = self.read_idx
+            self.read_idx += 1
+        if read_idx >= self.datafile['data'].shape[0]:
+            return None
+        hit = self.convert_row_to_hit(read_idx)
+        return hit
+
+    def write(self, obj):
+        '''
+        LArPixSerialConverter is a read-only Converter
+        This will log and error and return False
+        '''
+        self.logger.error('LArPixSerialConverter is read-only')
+        return False
+
+    def convert_row_to_hit(self, row_idx):
+        ''' Looks up data at row_idx and returns a corresponding `Hit` object '''
+        row_data = self.datafile['data'][row_idx]
+        row_dict = dict([(name, row_data[col]) for name, col in self._col_lookup.items()])
+        hit = reco3d_types.Hit(hid=row_idx, px=row_dict['pixelx'], py=row_dict['pixely'],
+                               ts=row_dict['timestamp'], q=(row_dict['v'] - row_dict['pdst_v']),
+                               chipid=row_dict['chipid'], channelid=row_dict['channelid'])
+        return hit
+
 class LArPixHDF5Converter(Converter):
     '''
     A Converter-type class for handling two-way communication with an HDF5 file used for reconstruction
@@ -21,6 +116,7 @@ class LArPixHDF5Converter(Converter):
     Locating objects: HDF5 file structure is organized at the top level by object type. Each object type has its own
     dataset with the naming scheme described by `LArPixHDF5Converter.type_lookup`. Each dataset consists of rows of 
     numpy arrays described by `dataset_desc`. To lookup/store an object at a specific row index, use `loc=<row idx>`.
+
     '''
     req_opts = Converter.req_opts + ['filename'] # list of required options (raises error if not found)
     default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {}) # list of option arguments with default values
@@ -52,7 +148,7 @@ class LArPixHDF5Converter(Converter):
         }
 
     def __init__(self, options):
-        super(LArPixHDF5Converter, self).__init__(options)
+        super().__init__(options)
         self.filename = self.options['filename']
         self.is_open = False
         self.datafile = None
