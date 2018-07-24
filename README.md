@@ -101,9 +101,9 @@ order in which processes are added to the manager specifies the order of executi
    - `set(loc, obj)`: replace object at `loc` with `obj`
    - `pop(dtype)`: grab next object in active stack, removing it from resource
    - `push(obj)`: insert object `obj` into the active stack
-   - `clear(dtype)`: clear active data of data type `dtype`. If `dtype` in `None`, clear all.
+   - `purge(dtype)`: clear active data of data type `dtype`. If `dtype` in `None`, clear all.
    This method is typically called at every `run()` call
-   - `hold(dtype)`: ask to hold active data of data type for another iteration
+   - `preserve(dtype)`: ask to hold active data of data type for another iteration
 
 `reco3d.converters`: simple classes that give resources access to external data formats
  - translates external data formats into `reco3d.types`
@@ -146,6 +146,7 @@ reco3d --- types --- basic_types --- * Empty *
         |- converters --- basic_converters --- Converter(object)
         |              |
         |              |- larpix_converters --- LArPixHDF5Converter(Converter)
+        |                                    |- LArPixSerialConverter(Converter)
         |
         |- processes --- basic_processes --- Process(object)
         |             |

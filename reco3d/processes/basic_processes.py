@@ -10,11 +10,11 @@ Each Process class has the following:
  - a `default_opts` attribute that is a dict of all options with default values
  - a `opt_resources` attribute that is a dict of optional resources used by process. Keys are the keyword
  name of the resource (used when creating the process and access to the resource via the resource manager)
- and values are lists of Resource class names that can be used
+ and values are lists of Resource class names that can be used (None enables any resource type)
  - a `req_resources` attribute that is a dict of required resources used by the process. Keys are the keyword
  name of the resource (used when creating the process and access to the resource via the resource manager)
- and values are lists of Resource class names that can be used. If any of these resources are not specified
- upon creation, a RuntimeError will be raised during the config stage.
+ and values are lists of Resource class names that can be used (None enables any resource type). If any of
+ these resources are not specified upon creation, a RuntimeError will be raised during the config stage.
  - the `start()`, `run()`, `continue_run()`, `finish()`, and `cleanup()` methods are not implemented by the
  basic_processes.Process class
  - the `config()` method checks for required resources and resource types, additional functionality may be
@@ -53,13 +53,17 @@ class Process(object):
                 err_msg = 'required resource {} missing'.format(req_key)
                 self.logger.error(err_msg)
                 raise RuntimeError(err_msg)
+            elif req_resource_types is None:
+                continue
             elif not type(self.resources[req_key]).__name__ in req_resource_types:
                 err_msg = 'resource {} type is not in allowed resource types'.format(req_key)
                 self.logger.error(err_msg)
                 raise RuntimeError(err_msg)
         for opt_key, opt_resource_types in self.opt_resources.items():
             if opt_key in self.resources:
-                if not type(self.resources[opt_key]).__name__ in opt_resource_types:
+                if opt_resource_types is None:
+                    continue
+                elif not type(self.resources[opt_key]).__name__ in opt_resource_types:
                     err_msg = 'resource {} type is not in allowed resource types'.format(req_key)
                     self.logger.error(err_msg)
                     raise RuntimeError(err_msg)

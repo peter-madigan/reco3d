@@ -9,10 +9,6 @@ def test_LArPixDataReaderProcess():
     in_resource = TestResource(OptionsTool())
     out_resource = TestResource(OptionsTool())
     process = LArPixDataReaderProcess(OptionsTool(), in_resource=in_resource, out_resource=out_resource)
-    with pytest.raises(RuntimeError):
-        process.config()
-    process.req_resources['in_resource'] += ['TestResource']
-    process.req_resources['out_resource'] += ['TestResource']
     in_resource.config()
     out_resource.config()
     process.config()
@@ -31,8 +27,6 @@ def test_LArPixDataReaderProcess():
     # test reading multiple hits at a time
     opts = OptionsTool({'max' : 10})
     process = LArPixDataReaderProcess(opts, in_resource=in_resource, out_resource=out_resource)
-    process.req_resources['in_resource'] += ['TestResource']
-    process.req_resources['out_resource'] += ['TestResource']
     in_resource.config()
     out_resource.config()
     process.config()
