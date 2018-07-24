@@ -2,6 +2,9 @@
 This module contains a variety of useful functions that you may need
 to make python do what you want
 
+Contains:
+ - `combine_dicts(first_dict, second_dict)`: create new dict that is a copy of `first_dict`,
+ overwritten by `second_dict`
 '''
 
 def combine_dicts(first_dict, second_dict):

@@ -5,8 +5,8 @@ Converters handle data IO to external services such as file formats, guis, etc, 
 instantiated by Resources.
 
 Each Converter class has the following methods and attributes:
- - a `req_opts` attribute that is a list of required option keys, if an OptionTool is passed into
- the Converter without all of the keys listed in `req_opts` a RunTimeError is raise
+ - a `req_opts` attribute that is a list of required option keys, if an OptionsTool is passed into
+ the Converter without all of the keys listed in `req_opts` a RuntimeError is raised
  - a `default_opts` attribute that is a dict of all options with default values
  - an `open()` method that can be called by the parent Resource during the config stage
  - a `close()` method that can be called by the parent Resource during the cleanup stage

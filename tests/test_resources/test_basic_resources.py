@@ -56,20 +56,20 @@ def test_Resource_stack():
     assert not r._stack[int]
 
     r.push(test_data)
-    r.clear(dtype=int)
+    r.purge(dtype=int)
     assert r.peek(int) is None
     r.push(test_data)
-    r.clear(dtype=float)
+    r.purge(dtype=float)
     assert r.peek(int) == 9
     r.push(test_data)
-    r.clear()
+    r.purge()
     assert r.pop(int) is None
 
     test_floats = [0.0, 1.0, 2.0]
     r.push(test_data)
     r.push(test_floats)
     assert r.peek(float) == 2.0
-    r.hold(int)
+    r.preserve(int)
     r.run()
     assert r.peek(float) is None
     assert r.peek(int) == 9

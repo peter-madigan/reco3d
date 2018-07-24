@@ -1,7 +1,11 @@
 '''
-This module contains converters used by LArPix reconstruction and analysis
-
+This module contains converters used by LArPix reconstruction and analysis.
 The module requirements are `h5py` and `numpy`.
+
+LArPixDataConverter handles reading and writing to "larpix analysis files" which contain event,
+track, and hit data.
+
+LArPixSerialConverter handles reading from "larpix serial files" produces by the dat2h5.py script.
 
 '''
 from reco3d.converters.basic_converters import Converter
@@ -16,6 +20,12 @@ class LArPixSerialConverter(Converter):
     '''
     A Converter-type class for reading from ROOT and HDF5 files produced by the dat2h5.py script
     Currently only reading Hit objects from HDF5 files is supported
+    options:
+     - `"filename"` : path to serial file to be read from
+
+    Locating objects: hits are indexed according to their position in the serial data stream to look
+    up a specific hit use `loc=<row index>`
+
     '''
     req_opts = Converter.req_opts + ['filename']
     default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {})
@@ -106,6 +116,7 @@ class LArPixHDF5Converter(Converter):
     Locating objects: HDF5 file structure is organized at the top level by object type. Each object type has its own
     dataset with the naming scheme described by `LArPixHDF5Converter.type_lookup`. Each dataset consists of rows of 
     numpy arrays described by `dataset_desc`. To lookup/store an object at a specific row index, use `loc=<row idx>`.
+
     '''
     req_opts = Converter.req_opts + ['filename'] # list of required options (raises error if not found)
     default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {}) # list of option arguments with default values
@@ -137,7 +148,7 @@ class LArPixHDF5Converter(Converter):
         }
 
     def __init__(self, options):
-        super(LArPixHDF5Converter, self).__init__(options)
+        super().__init__(options)
         self.filename = self.options['filename']
         self.is_open = False
         self.datafile = None

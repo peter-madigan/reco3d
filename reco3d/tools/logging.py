@@ -2,6 +2,20 @@
 LoggingTool class
 
 The LoggingTool acts a common logging interface.
+options:
+ - `"level"`: log level. Can be any of `["debug","info","warning","error","critical"]`, but higher than
+ `"error"` is not recommended.
+ - `"outfile"`: tuple of `(<enable file logging>, <file log level>, <file path>)`
+ - `"stdout"`: tuple of `(<enable stdout logging>, <stdout log level>)`
+ - `"stderr"`: tuple of `(<enable stderr logging>, <stderr log level>)`
+ - `"format"`: log message string (see python logging module for formatting)
+
+Each LoggingTool object provides access to the following logging methods:
+ - `debug()` lowest level logging (whatever the developer thinks is useful at some point in time)
+ - `info()` higher level logging (stage, event loop progress, etc)
+ - `warning()` log things that may cause issues (two loggers are initialized with the same name, etc)
+ - `error()` log things that are going to cause issues (accessing write methods of read-only objects, missing arguments etc)
+ - `critical()` log things that requires the process to stop
 
 '''
 import logging
