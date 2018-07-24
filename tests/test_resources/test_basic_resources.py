@@ -19,7 +19,7 @@ def test_Resource_read():
     assert len(r._read_queue[int]) == 7
     read_value = r.read(int, n=-1)
     assert read_value == [3,4,5,6,7,8,9]
-    assert len(r._read_queue[int]) == 0
+    assert not r._read_queue[int]
     assert r.read(int) is None
 
 def test_Resource_write():

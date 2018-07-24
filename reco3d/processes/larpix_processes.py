@@ -85,6 +85,7 @@ class LArPixCalibrationProcess(Process):
         }
 
     def config(self):
+        ''' Apply options to process '''
         super().config()
 
         self.calibrations = self.options['calibrations']

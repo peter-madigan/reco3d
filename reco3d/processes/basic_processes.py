@@ -64,7 +64,7 @@ class Process(object):
                 if opt_resource_types is None:
                     continue
                 elif not type(self.resources[opt_key]).__name__ in opt_resource_types:
-                    err_msg = 'resource {} type is not in allowed resource types'.format(req_key)
+                    err_msg = 'resource {} type is not in allowed resource types'.format(opt_key)
                     self.logger.error(err_msg)
                     raise RuntimeError(err_msg)
 
