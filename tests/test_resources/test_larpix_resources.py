@@ -9,6 +9,7 @@ def test_LArPixDataResource():
     opts = OptionsTool()
     with pytest.raises(RuntimeError, message='should raise error - no converter specified'):
         dr = LArPixDataResource(opts)
+        dr.config()
     opts = OptionsTool({'LArPixHDF5Converter' : { 'filename' : 'test.h5' }})
     dr = LArPixDataResource(opts)
     try:

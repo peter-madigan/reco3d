@@ -20,7 +20,7 @@ class LArPixSerialConverter(Converter):
     req_opts = Converter.req_opts + ['filename']
     default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {})
 
-    _name_lookup = { # col: name
+    _name_lookup = { # col: name of hdf5 serial file
         0 : 'channelid',
         1 : 'chipid',
         2 : 'pixelid',
@@ -62,11 +62,13 @@ class LArPixSerialConverter(Converter):
 
     def read(self, dtype, loc=None): # Converter method
         '''
-        Looking at loc, return objects that match type
-        If loc is None, return "next" object
+        Looking at `loc`, return objects that match type
+        If `loc` is `None`, return "next" `Hit`
+        If `dtype` is other than `Hit`, logs error and returns `None`
         '''
         if not dtype == reco3d_types.Hit:
-            raise NotImplementedError('LArPixSerialConverter does not support reading non-Hit types')
+            self.logger.error('LArPixSerialConverter does not support reading non-Hit types')
+            return None
         if not self.is_open:
             self.open()
         read_idx = loc
@@ -79,7 +81,12 @@ class LArPixSerialConverter(Converter):
         return hit
 
     def write(self, obj):
-        raise NotImplementedError('LArPixSerialConverter is read-only')
+        '''
+        LArPixSerialConverter is a read-only Converter
+        This will log and error and return False
+        '''
+        self.logger.error('LArPixSerialConverter is read-only')
+        return False
 
     def convert_row_to_hit(self, row_idx):
         ''' Looks up data at row_idx and returns a corresponding `Hit` object '''

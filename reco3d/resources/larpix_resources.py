@@ -1,5 +1,5 @@
 from reco3d.resources.basic_resources import Resource
-from reco3d.converters.larpix_converters import (LArPixHDF5Converter, LArPixSerialHDF5Converter)
+from reco3d.converters.larpix_converters import (LArPixHDF5Converter, LArPixSerialConverter)
 import reco3d.tools.python as reco3d_pytools
 import reco3d.types as reco3d_types
 
@@ -20,7 +20,7 @@ class LArPixSerialDataResource(Resource):
         ''' Initialize converter and options '''
         super().config()
 
-        self.converter = LArPixSerialHDF5Converter(self.options.get('LArPixSerialConverter'))
+        self.converter = LArPixSerialConverter(self.options.get('LArPixSerialConverter'))
         self.eof_reached = False
         self.read_queue_length = self.options['read_queue_length']
         self.sort_field = self.options['sort_field']
@@ -34,7 +34,7 @@ class LArPixSerialDataResource(Resource):
         self.converter.open()
 
         for dtype in self.read_queue_dtypes():
-            idx = 0:
+            idx = 0
             while idx < self.read_queue_length:
                 new_data = self.converter.read(dtype)
                 if new_data is None:
