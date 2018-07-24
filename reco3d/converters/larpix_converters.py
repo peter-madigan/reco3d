@@ -15,7 +15,80 @@ region_ref = h5py.special_dtype(ref=h5py.RegionReference)
 class LArPixSerialConverter(Converter):
     '''
     A Converter-type class for reading from ROOT and HDF5 files produced by the dat2h5.py script
+    Currently only reading Hit objects from HDF5 files is supported
     '''
+    req_opts = Converter.req_opts + ['filename']
+    default_opts = reco3d_pytools.combine_dicts(Converter.default_opts, {})
+
+    _name_lookup = { # col: name
+        0 : 'channelid',
+        1 : 'chipid',
+        2 : 'pixelid',
+        3 : 'pixelx',
+        4 : 'pixely',
+        5 : 'raw_adc',
+        6 : 'raw_timestamp',
+        7 : 'adc',
+        8 : 'timestamp',
+        9 : 'serialblock',
+        10 : 'v',
+        11 : 'pdst_v'
+        }
+    _col_lookup = dict([(name, col) for col, name in _name_lookup.items()])
+
+    def __init__(self, options):
+        super().__init__(options)
+        self.filename = self.options['filename']
+        self.is_open = False
+        self.datafile = None
+        self.read_idx = 0
+
+        self.logger.debug('{} initialized'.format(self))
+
+    def open(self): # Converter method
+        ''' Open converter (typically occurs during config phase) '''
+        if not self.is_open:
+            # open file
+            self.datafile = h5py.File(self.filename)
+        self.is_open = True
+        self.logger.debug('{} opened'.format(self))
+
+    def close(self): # Converter method
+        ''' Close converter (typically occurs during cleanup phase) '''
+        if self.is_open:
+            self.datafile.close()
+        self.is_open = False
+        self.logger.debug('{} closed'.format(self))
+
+    def read(self, dtype, loc=None): # Converter method
+        '''
+        Looking at loc, return objects that match type
+        If loc is None, return "next" object
+        '''
+        if not dtype == reco3d_types.Hit:
+            raise NotImplementedError('LArPixSerialConverter does not support reading non-Hit types')
+        if not self.is_open:
+            self.open()
+        read_idx = loc
+        if read_idx is None:
+            read_idx = self.read_idx
+            self.read_idx += 1
+        if read_idx >= self.datafile['data'].shape[0]:
+            return None
+        hit = self.convert_row_to_hit(read_idx)
+        return hit
+
+    def write(self, obj):
+        raise NotImplementedError('LArPixSerialConverter is read-only')
+
+    def convert_row_to_hit(self, row_idx):
+        ''' Looks up data at row_idx and returns a corresponding `Hit` object '''
+        row_data = self.datafile['data'][row_idx]
+        row_dict = dict([(name, row_data[col]) for name, col in self._col_lookup.items()])
+        hit = reco3d_types.Hit(hid=row_idx, px=row_dict['pixelx'], py=row_dict['pixely'],
+                               ts=row_dict['timestamp'], q=(row_dict['v'] - row_dict['pdst_v']),
+                               chipid=row_dict['chipid'], channelid=row_dict['channelid'])
+        return hit
 
 class LArPixHDF5Converter(Converter):
     '''
