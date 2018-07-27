@@ -1,3 +1,11 @@
+'''
+This module contains LArPix specific processes:
+ - LArPixDataReaderProcess
+ - LArPixCalibrationProcess
+ - LArPixDataWriterProcess
+ - LArPixEventBuilderProcess
+'''
+import reco3d.tools.algorithms.hough as hough
 import reco3d.tools.python as reco3d_pytools
 import reco3d.types as reco3d_types
 from reco3d.processes.basic_processes import Process
@@ -217,7 +225,7 @@ class LArPixEventBuilderProcess(Process):
         '''
         super().config()
 
-        hits = self.resources['data_resource'].pop(reco3d_types.Hit, n=self.max_nhit)
+        hits = self.resources['data_resource'].pop(reco3d_types.Hit, n=-1)
         events, remaining_hits = self.find_events(hits)
         if remaining_hits:
             self.resources['data_resource'].hold(reco3d_types.Hit)
@@ -259,3 +267,71 @@ class LArPixEventBuilderProcess(Process):
         clusters, remaining_hits = self.find_hit_clusters(hits)
         events = [reco3d_types.Event(evid=None, hits=cluster) for cluster in clusters]
         return events, remaining_hits
+
+class LArPixTrackReconstructionProcess(Process):
+    '''
+    This process extracts tracks from Events in the data resource stack using a Hough
+    transformation and a PCA analysis
+    options:
+     - `hough_threshold`: minimum number of hits in a track (default: 5)
+     - `hough_ndir`: number of directions for Hough transform to generate (default: 1000)
+     - `hough_npos`:
+
+    resources:
+     - `data_resource`: resource to provide stack. Accepted types: all
+
+    '''
+    req_opts = Process.req_opts + []
+    default_ops = reco3d_pytools.combine_dicts(\
+        Process.default_opts, { 'hough_threshold' : 5,
+                                'hough_ndir' : 1000,
+                                'hough_npos' : 30 })
+    opt_resources = {}
+    req_resources = {
+        'data_resource': None
+        }
+
+    def config(self):
+        ''' Apply options to process '''
+        super().config()
+
+        self.hough_threshold = self.options['hough_threshold']
+        self.hough_ndir = self.options['hough_ndir']
+        self.hough_npos = self.options['hough_npos']
+        self.hough_cache = hough.setup_fit_errors()
+
+    def run(self):
+        '''
+        Pull all events from stack. For each event, perform the track reconstruction
+        algorithm. Put events back into the stack with associated tracks.
+
+        '''
+        super().config()
+
+        events = self.resources['data_resource'].pop(reco3d_types.Event, n=-1)
+        if events is None:
+            return
+        for event in events:
+            tracks = self.extract_tracks(event)
+            event.reco_objs += tracks
+        self.resources['data_resource'].push(events)
+
+    def extract_tracks(self, event):
+        ''' Perform hough transform algorithm and return found tracks '''
+        x = np.array(event['px'])/10
+        y = np.array(event['py'])/10
+        z = np.array(event['ts'] - event.ts_start)/1000
+        # FIXME: assumes t0 is at event start
+        points = np.arry(list(zip(x,y,z)))
+        params = hough.HoughParameters()
+        params.ndirections = self.hough_ndir
+        params.npositions = self.hough_npos
+        lines, points, params = hough.run_iterative_hough(points,
+                params, self.hough_threshold, self.hough_cache)
+
+        tracks = []
+        for line, hit_idcs in lines.items():
+            hits = event[list(hit_idcs)]
+            tracks += [Track(hits=hits, theta=line.theta, phi=line.phi,
+                xp=line.xp, yp=line.yp, cov=line.cov)]
+        return tracks
