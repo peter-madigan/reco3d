@@ -114,7 +114,7 @@ class LArPixHDF5Converter(Converter):
         - `"filename"`: path to file
 
     Locating objects: HDF5 file structure is organized at the top level by object type. Each object type has its own
-    dataset with the naming scheme described by `LArPixHDF5Converter.type_lookup`. Each dataset consists of rows of 
+    dataset with the naming scheme described by `LArPixHDF5Converter.type_lookup`. Each dataset consists of rows of
     numpy arrays described by `dataset_desc`. To lookup/store an object at a specific row index, use `loc=<row idx>`.
 
     '''
@@ -154,7 +154,7 @@ class LArPixHDF5Converter(Converter):
         self.datafile = None
         self.read_idx = dict([(dset_name, 0) for dset_name in self.rev_type_lookup])
         self.write_idx = dict([(dset_name, 0) for dset_name in self.rev_type_lookup])
-        
+
         self.logger.debug('{} initialized'.format(self))
 
     def open(self): # Converter method
@@ -333,7 +333,7 @@ class LArPixHDF5Converter(Converter):
         Fill all instances of -9999 with None
         '''
         for key, value in args_dict.items():
-            if isinstance(value, list) or isinstance(value, np.ndarray):
+            if isinstance(value, (list, np.ndarray)):
                 continue
             elif value == -9999:
                 args_dict[key] = None
@@ -468,7 +468,7 @@ class LArPixHDF5Converter(Converter):
             track_idx = self.write_data(track_dset_name, track_data, track_idx)
 
         return track_idx
-    
+
     def write_event(self, event, loc, track_ref=None, hit_ref=None, **kwargs):
         ''' Write an event at row index specified by `loc` '''
         # write event in correct location with uninitialized references

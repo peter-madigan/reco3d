@@ -186,11 +186,11 @@ def fibonacci_hemisphere(samples):
     points = np.empty((samples, 3))
     samples = samples * 2
     offset = 2./samples
-    increment = np.pi * (3. - np.sqrt(5.));
+    increment = np.pi * (3. - np.sqrt(5.))
 
     index = 0
     for i in range(samples):
-        y = ((i * offset) - 1) + (offset / 2);
+        y = ((i * offset) - 1) + (offset / 2)
         r = np.sqrt(1 - pow(y,2))
 
         phi = ((i + 1) % samples) * increment
