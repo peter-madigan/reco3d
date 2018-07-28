@@ -6,9 +6,6 @@ Based on the algorithm described in Dalitz, Schramke, Jeltsch [2017].
 import numpy as np
 import sympy as sp
 
-from larpixreco.RecoLogging import getLogger
-logger = getLogger(__name__)
-
 class Line(object):
     '''A line in 3D.'''
 
@@ -625,6 +622,7 @@ def run_iterative_hough(points, params, threshold, cache=None):
                     not found_mask[i]]]
             for i in lines[best_fit_line]:
                 found_mask[i] = True
-            logger.debug('found good line with %d points' % len(closer))
+            print('found good line with %d points' % len(closer))
+            # FIXME: this should go into the log
 
     return lines, points, params
