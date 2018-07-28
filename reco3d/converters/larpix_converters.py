@@ -555,4 +555,3 @@ class LArPixHDF5Converter(Converter):
             if obj == obj_to_compare:
                 return row_idx
         return None
-
