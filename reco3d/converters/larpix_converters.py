@@ -350,8 +350,11 @@ class LArPixHDF5Converter(Converter):
         for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
             hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
         new_kwargs['hits'] = hits
-        new_kwargs['cov'] = np.diag(np.array([data['sigma_theta'], data['sigma_phi'], data['sigma_x'],
-                                              data['sigma_y']]))
+        if any([data[key] == -9999 for key in ['sigma_theta', 'sigma_phi', 'sigma_x']]):
+            new_kwargs['cov'] = None
+        else:
+            new_kwargs['cov'] = np.diag(np.array([data['sigma_theta'], data['sigma_phi'], data['sigma_x'],
+                                                  data['sigma_y']]))
         track = self.hdf5_to_reco3d_type(reco3d_types.Track, data, replace_defaults=replace_defaults,
                                          **new_kwargs, **kwargs)
         return track
