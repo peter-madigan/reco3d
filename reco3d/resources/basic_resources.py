@@ -186,7 +186,7 @@ class Resource(object):
         ''' Put object in active stack '''
         if obj is None:
             return
-        if isinstance(obj, list) and len(obj) > 0:
+        if isinstance(obj, list) and obj:
             dtype = type(obj[0])
             if dtype in self._stack.keys():
                 self._stack[dtype] += obj
