@@ -1,0 +1,46 @@
+{
+        "_header" : "This file contains default settings to use in the larpix reconstruction script. They can be overridden by arguments passed into the script.",
+
+        "LoggingTool" : {
+                        "outfile" : [false, "info", ".log"],
+                        "stdout" : [true, "info"]
+                        },
+
+        "Manager" : {},
+
+        "LArPixDataReaderProcess" : {
+                "dtypes" : ["Hit"],
+                "max" : 1
+                },
+
+        "LArPixEventBuilderProcess" : {
+                "max_nhit" : -1,
+                "min_nhit" : 5,
+                "dt_cut" : 10e3
+                },
+
+        "LArPixTrackReconstructionProcess" : {
+                "hough_threshold" : 5,
+                "hough_ndir" : 1000,
+                "hough_npos" : 30
+                },
+
+        "LArPixDataWriterProcess" : {
+                "dtypes" : ["Event"]
+                },
+
+        "LArPixSerialDataResource" : {
+                "read_queue_length" : 2000,
+                "LArPixSerialConverter" : {}
+                },
+
+        "LArPixDataResource" : {
+                "write_queue_length" : 1,
+                "LArPixHDF5Converter" : {}
+                },
+
+        "LArPixDataCounterProcess" : {
+                "dtypes" : null,
+                "interval" : 1000
+                }
+}

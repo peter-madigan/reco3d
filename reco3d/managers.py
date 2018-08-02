@@ -105,7 +105,6 @@ class ResourceManager(object):
       def run(self):
             for resource in self:
                   resource.run()
-            self.logger.debug('run complete')
 
       def continue_run(self):
             return all([resource.continue_run() for resource in self])
@@ -158,7 +157,6 @@ class ProcessManager(object):
       def run(self):
             for process in self:
                   process.run()
-            self.logger.debug('run complete')
 
       def continue_run(self):
             return all([process.continue_run() for process in self])

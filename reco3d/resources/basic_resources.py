@@ -172,9 +172,13 @@ class Resource(object):
                 obj = self._stack[dtype][-1]
                 self._stack[dtype] = self._stack[dtype][:-1]
                 return obj
-            else:
+            elif n > 1 and n < len(self._stack[dtype]):
                 obj = reversed(self._stack[dtype][-n:])
                 self._stack[dtype] = self._stack[dtype][:-n]
+                return list(obj)
+            else:
+                obj = reversed(self._stack[dtype])
+                self._stack[dtype] = []
                 return list(obj)
         return None
 
@@ -182,13 +186,13 @@ class Resource(object):
         ''' Put object in active stack '''
         if obj is None:
             return
-        if isinstance(obj, list):
+        if isinstance(obj, list) and len(obj) > 0:
             dtype = type(obj[0])
             if dtype in self._stack.keys():
                 self._stack[dtype] += obj
             else:
                 self._stack[dtype] = obj
-        else:
+        elif not isinstance(obj, list):
             dtype = type(obj)
             if dtype in self._stack.keys():
                 self._stack[dtype].append(obj)
@@ -202,8 +206,10 @@ class Resource(object):
                 return list(reversed(self._stack[dtype][:].copy()))
             elif n == 1:
                 return self._stack[dtype][-1]
-            else:
+            elif n > 1 and n < len(self._stack[dtype]):
                 return list(reversed(self._stack[dtype][-n:].copy()))
+            else:
+                return list(reversed(self._stack[dtype].copy()))
         return None
 
     def purge(self, dtype=None):

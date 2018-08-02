@@ -1,5 +1,6 @@
 import json
 import os
+import reco3d.tools.python as reco3d_pytools
 
 CONF_DIR = '../../conf/' # relative path to configuration files
 
@@ -23,12 +24,14 @@ class OptionsTool(object):
         Initialize the OptionsTool using a dict or file
         Note: file keys / values take precedence
         '''
-        if options_dict is None:
-            self._opt_dict = {}
-        else:
-            self._opt_dict = options_dict.copy()
+        self._opt_dict = {}
         if not filename is None:
             self._load_from_file(filename)
+        if not options_dict is None:
+            self._opt_dict = reco3d_pytools.combine_dicts(self._opt_dict, options_dict)
+
+    def __str__(self):
+        return str(self._opt_dict)
 
     def __getitem__(self, option):
         '''
@@ -83,7 +86,7 @@ class OptionsTool(object):
         Write default values into options
         '''
         for key, value in default_opts.items():
-            if self[key] is None:
+            if not key in self:
                 self[key] = value
 
     def get(self, key):

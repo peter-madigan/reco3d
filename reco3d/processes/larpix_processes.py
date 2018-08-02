@@ -5,6 +5,7 @@ This module contains LArPix specific processes:
  - LArPixDataWriterProcess
  - LArPixEventBuilderProcess
 '''
+import numpy as np
 import reco3d.tools.algorithms.hough as hough
 import reco3d.tools.python as reco3d_pytools
 import reco3d.types as reco3d_types
@@ -54,7 +55,6 @@ class LArPixDataReaderProcess(Process):
         super().run()
 
         obj = None
-        self.logger.debug(self.max)
         if self.dtypes is None:
             for dtype in self.resources['in_resource'].read_queue_dtypes():
                 obj = self.resources['in_resource'].read(dtype, n=self.max)
@@ -120,6 +120,74 @@ class LArPixCalibrationProcess(Process):
             return hits
         raise NotImplementedError
 
+class LArPixDataCounterProcess(Process):
+    '''
+    This process logs a message after a specified number of objects have gone through the stack or after a specified number of run executions
+    '''
+    req_opts = Process.req_opts + []
+    default_opts = reco3d_pytools.combine_dicts(\
+        Process.default_opts, { 'dtypes' : None, # which data types to update on (None updates all)
+                                'interval' : 1000, # how often to update (default value)
+                                'dtype_interval' : {}}) # how often to update specified data types
+
+    opt_resources = {
+        'data_resource': None
+        }
+    req_resources = {}
+
+    def config(self):
+        ''' Apply options to process '''
+        super().config()
+
+        self.dtypes = self.options['dtypes']
+        self.interval = self.options['interval']
+        self.dtype_name_interval = self.options['dtype_interval']
+
+        self.counter = {}
+        self.interval_counter = {}
+        self.dtype_interval = {}
+
+        if 'data_resource' in self.resources:
+            for dtype_name in self.dtype_name_interval.keys():
+                dtype = getattr(reco3d_types, dtype_name)
+                self.counter[dtype] = 0
+                self.interval_counter[dtype] = 0
+                self.dtype_interval[dtype] = self.dtype_name_interval[dtype_name]
+            if not self.dtypes is None:
+                for dtype_name in self.dtypes:
+                    dtype = getattr(reco3d_types, dtype_name)
+                    if not dtype in self.counter.keys():
+                        self.counter[dtype] = 0
+                        self.interval_counter[dtype] = 0
+                        self.dtype_interval[dtype] = self.interval
+        self.counter['run iter'] = 0
+        self.interval_counter['run iter'] = 0
+        self.dtype_interval['run iter'] = self.interval
+
+    def run(self):
+        ''' Tallies executions and data types in stack, logs on specified interval '''
+        super().run()
+
+        self.counter['run iter'] += 1
+        self.interval_counter['run iter'] += 1
+        if 'data_resource' in self.resources:
+            for dtype in self.resources['data_resource'].stack_dtypes():
+                if dtype in self.counter:
+                    self.counter[dtype] += len(self.resources['data_resource'].peek(dtype, n=-1))
+                    self.interval_counter[dtype] += len(self.resources['data_resource'].peek(dtype, n=-1))
+                elif self.dtypes is None:
+                    try:
+                        self.counter[dtype] += len(self.resources['data_resource'].peek(dtype, n=-1))
+                        self.interval_counter[dtype] += len(self.resources['data_resource'].peek(dtype, n=-1))
+                    except KeyError:
+                        self.counter[dtype] = len(self.resources['data_resource'].peek(dtype, n=-1))
+                        self.interval_counter[dtype] = len(self.resources['data_resource'].peek(dtype, n=-1))
+                        self.dtype_interval[dtype] = self.interval
+        for key in self.counter.keys():
+            if self.interval_counter[key] >= self.dtype_interval[key]:
+                self.logger.info('{} {}'.format(key, self.counter[key]))
+                self.interval_counter[key] = 0
+
 class LArPixDataWriterProcess(Process):
     '''
     This process grabs objects in the in resource stack and puts them in the out resource write queue
@@ -135,7 +203,7 @@ class LArPixDataWriterProcess(Process):
 
     '''
     req_opts = Process.req_opts + []
-    default_ops = reco3d_pytools.combine_dicts(\
+    default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'dtypes' : None, # which data types to write (None attempts to write all object types)
                                 'max' : -1 }) # max number of data objects to write in each loop (-1 write all objects)
 
@@ -163,17 +231,20 @@ class LArPixDataWriterProcess(Process):
         ''' Copies objects from the in_resource stack to the out_resource write_queue '''
         super().run()
 
-        obj = None
         if self.dtypes is None:
             for dtype in self.resources['in_resource'].stack_dtypes():
                 obj = self.resources['in_resource'].peek(dtype, n=self.max)
+
+                if obj is None:
+                    continue
+                self.resources['out_resource'].write(obj)
         else:
             for dtype in self.dtypes:
                 obj = self.resources['in_resource'].peek(dtype, n=self.max)
 
-        if obj is None:
-            return
-        self.resources['out_resource'].write(obj)
+                if obj is None:
+                    continue
+                self.resources['out_resource'].write(obj)
 
 class LArPixEventBuilderProcess(Process):
     '''
@@ -190,7 +261,7 @@ class LArPixEventBuilderProcess(Process):
 
     '''
     req_opts = Process.req_opts + []
-    default_ops = reco3d_pytools.combine_dicts(\
+    default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'max_nhit' : -1, # max number of hits in an event (-1 sets no limit)
                                 'min_nhit' : 5, # min number of hits in an event
                                 'dt_cut' : 10e3 }) # max dt between hits in an event [ns]
@@ -200,7 +271,7 @@ class LArPixEventBuilderProcess(Process):
         'data_resource': None
         }
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
@@ -208,7 +279,7 @@ class LArPixEventBuilderProcess(Process):
         self.min_nhit = self.options['min_nhit']
         self.dt_cut = self.options['dt_cut']
 
-    def run(self):
+    def run(self): # Process method
         '''
         Pull all hits from the stack, check if they form an isolated event(s)
         If so, assemble event from hits
@@ -225,15 +296,19 @@ class LArPixEventBuilderProcess(Process):
         '''
         super().config()
 
-        hits = self.resources['data_resource'].pop(reco3d_types.Hit, n=-1)
+#        self.logger.debug('')
+        hits = reversed(self.resources['data_resource'].pop(reco3d_types.Hit, n=-1))
+#        self.logger.debug(hits)
         events, remaining_hits = self.find_events(hits)
+#        self.logger.debug(events)
+#        self.logger.debug(remaining_hits)
         if remaining_hits:
-            self.resources['data_resource'].hold(reco3d_types.Hit)
+            self.resources['data_resource'].preserve(reco3d_types.Hit)
         self.resources['data_resource'].push(remaining_hits)
         self.resources['data_resource'].push(events)
 
     def is_associated(self, hit, hits):
-        ''' Apply selection criteria '''
+        ''' Apply hit selection criteria '''
         if hit is None:
             return False
         elif not hits:
@@ -243,6 +318,12 @@ class LArPixEventBuilderProcess(Process):
                 if abs(hit.ts - other.ts) < self.dt_cut:
                     return True
         return False
+
+    def is_cluster(self, hits):
+        ''' Apply event selection criteria '''
+        if not len(hits) >= self.min_nhit:
+            return False
+        return True
 
     def find_hit_clusters(self, hits):
         ''' Find isolated hit clusters '''
@@ -322,7 +403,7 @@ class LArPixTrackReconstructionProcess(Process):
         y = np.array(event['py'])/10
         z = np.array(event['ts'] - event.ts_start)/1000
         # FIXME: assumes t0 is at event start
-        points = np.arry(list(zip(x,y,z)))
+        points = np.array(list(zip(x,y,z)))
         params = hough.HoughParameters()
         params.ndirections = self.hough_ndir
         params.npositions = self.hough_npos
@@ -332,6 +413,6 @@ class LArPixTrackReconstructionProcess(Process):
         tracks = []
         for line, hit_idcs in lines.items():
             hits = event[list(hit_idcs)]
-            tracks += [Track(hits=hits, theta=line.theta, phi=line.phi,
+            tracks += [reco3d_types.Track(hits=hits, theta=line.theta, phi=line.phi,
                 xp=line.xp, yp=line.yp, cov=line.cov)]
         return tracks

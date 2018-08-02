@@ -15,7 +15,7 @@ def test_OptionsTool_file_init():
     assert ot['_test_hidden'] is None
     assert ot['a'] == 0
     assert ot['test_key0'] == 'test_value0'
-    assert ot['test_overwrite'] == 'new_value'
+    assert ot['test_overwrite'] == 1
     assert type(ot['test_named_obj']) is dict
     assert type(ot.get('test_named_obj')) is OptionsTool
     obj_options = ot.get('test_named_obj')
@@ -37,3 +37,9 @@ def test_OptionsTool_check_req():
     with pytest.raises(RuntimeError, message='should raise error - missing c key'):
         ot.check_req(req_opts)
 
+def test_OptionsTool_apply_defaults():
+    default_opts = { 'a' : 0, 'b' : 1 }
+    ot = OptionsTool(options_dict={'a':1})
+    ot.set_default(default_opts)
+    assert ot['a'] == 1
+    assert ot['b'] == 1

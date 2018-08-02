@@ -90,7 +90,7 @@ class LArPixSerialConverter(Converter):
         hit = self.convert_row_to_hit(read_idx)
         return hit
 
-    def write(self, obj):
+    def write(self, obj): # Converter method
         '''
         LArPixSerialConverter is a read-only Converter
         This will log and error and return False
@@ -168,6 +168,10 @@ class LArPixHDF5Converter(Converter):
             for dataset_name in self.datafile.keys():
                 if dataset_name in self.rev_type_lookup.keys():
                     self.write_idx[dataset_name] = self.datafile[dataset_name].shape[0]
+        # create any missing datasets
+        for dataset_name in self.rev_type_lookup.keys():
+            if not dataset_name in self.datafile.keys():
+                self.create_dataset(dataset_name)
         self.is_open = True
         self.logger.debug('{} opened'.format(self))
 
@@ -274,15 +278,15 @@ class LArPixHDF5Converter(Converter):
             elif data_dict[key] is None and not entry_desc[1] == region_ref:
                 data_dict[key] = -9999
 
-    def hit_to_hdf5(self, hit, event_ref=None, track_ref=None, **kwargs):
+    def hit_to_hdf5(self, hit, idx=None, event_ref=None, track_ref=None, **kwargs):
         '''
         Returns array representing a hit that can be saved in the hdf5 format
         References must be passed in as arguments
         '''
-        data = self.reco3d_type_to_hdf5(hit, event_ref=event_ref, track_ref=track_ref, **kwargs)
+        data = self.reco3d_type_to_hdf5(hit, idx=idx, event_ref=event_ref, track_ref=track_ref, **kwargs)
         return data
 
-    def track_to_hdf5(self, track, hit_ref=None, event_ref=None, **kwargs):
+    def track_to_hdf5(self, track, idx=None, hit_ref=None, event_ref=None, **kwargs):
         '''
         Returns array representing a track that can be saved in the hdf5 format
         References must be passed in as arguments
@@ -294,16 +298,16 @@ class LArPixHDF5Converter(Converter):
             new_kwargs['sigma_phi'] = s_phi
             new_kwargs['sigma_x'] = s_x
             new_kwargs['sigma_y'] = s_y
-        data = self.reco3d_type_to_hdf5(track, hit_ref=hit_ref, track_ref=event_ref,
+        data = self.reco3d_type_to_hdf5(track, idx=idx, hit_ref=hit_ref, track_ref=event_ref,
                                         **new_kwargs, **kwargs)
         return data
 
-    def event_to_hdf5(self, event, hit_ref=None, track_ref=None, **kwargs):
+    def event_to_hdf5(self, event, idx=None, hit_ref=None, track_ref=None, **kwargs):
         '''
         Returns array representing an event that can be saved in the hdf5 format
         References must be passed in as arguments
         '''
-        data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
+        data = self.reco3d_type_to_hdf5(event, idx=idx, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
 
 # Methods for converting data to a reco3d type
     def hdf5_to_reco3d_type(self, dtype, data, replace_defaults=True, **kwargs):
@@ -420,7 +424,7 @@ class LArPixHDF5Converter(Converter):
         return event
 
 # Methods for writing data
-    def write_data(self, dset_name, write_data, loc):
+    def write_data(self, dset_name, write_data, loc=None):
         '''
         Write an object to a particular dataset and location
         If loc is larger than current array size, resize array accordingly
@@ -430,124 +434,133 @@ class LArPixHDF5Converter(Converter):
         if write_idx is None:
             write_idx = self.write_idx[dset_name]
             self.write_idx[dset_name] += 1
-        if not dset_name in self.datafile.keys():
-            self.create_dataset(dset_name)
         if self.datafile[dset_name].shape[0] <= write_idx:
             self.datafile[dset_name].resize(write_idx + 1, axis=0)
 
         self.datafile[dset_name][write_idx] = write_data
         return write_idx
 
-    def write_hit(self, hit, loc, event_ref=None, track_ref=None, **kwargs):
-        ''' Write a hit to row index specified by `loc`, returns '''
+    def write_hit(self, hit, loc, event_idcs=None, track_idcs=None, **kwargs):
+        ''' Write a hit to row index specified by `loc`, returns index of written hit '''
         hit_dset_name = self.type_lookup[type(hit)]
+        event_ref = None
+        if event_idcs:
+            event_ref = self.datafile['events'].regionref[event_idcs]
+        track_ref = None
+        if track_idcs:
+            track_ref = self.datafile['tracks'].regionref[track_idcs]
         hit_data = self.reco3d_type_to_hdf5(hit, event_ref=event_ref, track_ref=track_ref, **kwargs)
         return self.write_data(hit_dset_name, hit_data, loc)
 
-    def write_track(self, track, loc, event_ref=None, hit_ref=None, **kwargs):
+    def write_track(self, track, loc, event_idcs=None, hit_idcs=None, **kwargs):
         ''' Write a track at row index specified by `loc` '''
         # write track in correct location with uninitialized references
-        track_dset_name = self.type_lookup[type(track)]
+        event_dset_name = self.type_lookup[reco3d_types.Event]
+        event_ref = None
+        if event_idcs:
+            event_ref = self.datafile[event_dset_name].regionref[event_idcs]
+        hit_dset_name = self.type_lookup[reco3d_types.Hit]
+        hit_ref = None
+        if hit_idcs:
+            hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
+        track_dset_name = self.type_lookup[reco3d_types.Track]
         track_data = self.reco3d_type_to_hdf5(track, event_ref=event_ref, hit_ref=hit_ref, **kwargs)
         track_idx = self.write_data(track_dset_name, track_data, loc)
 
-        if not hit_ref is None:
+        if not hit_idcs is None:
             return track_idx
-        # store hits if no hit_ref is given
 
-        track_ref = self.datafile[track_dset_name].regionref[track_idx]
-        if hit_ref is None and track.hits:
+        # store hits if no hit_idcs are given
+        track_idcs = [track_idx]
+        if hit_idcs is None and track.hits:
             # store hits
             hit_idcs = []
             for hit in track.hits:
-                hit_idcs += [self.write_hit(hit, None, event_ref=None, track_ref=track_ref)]
-            hit_dset_name = self.type_lookup[type(track.hits[0])]
-            if track.hits:
-                hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
-            else:
-                hit_ref = None
+                hit_idcs += [self.write_hit(hit, None, event_idcs=event_idcs, track_idcs=track_idcs)]
             # re-store track with reference to hits
+            hit_ref = self.datafile[hit_dset_name].regionref[sorted(hit_idcs)]
             track_data = self.reco3d_type_to_hdf5(track, event_ref=event_ref, hit_ref=hit_ref, **kwargs)
             track_idx = self.write_data(track_dset_name, track_data, track_idx)
 
         return track_idx
 
-    def write_event(self, event, loc, track_ref=None, hit_ref=None, **kwargs):
+    def write_event(self, event, loc, track_idcs=None, hit_idcs=None, **kwargs):
         ''' Write an event at row index specified by `loc` '''
+        # FIXME this method is a very long mess!
         # write event in correct location with uninitialized references
+        hit_dset_name = self.type_lookup[reco3d_types.Hit]
+        hit_ref = None
+        if hit_idcs:
+            hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
+        track_dset_name = self.type_lookup[reco3d_types.Track]
+        track_ref = None
+        if track_idcs:
+            track_ref = self.datafile[track_dset_name].regionref[track_idcs]
         event_dset_name = self.type_lookup[type(event)]
         event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
         event_idx = self.write_data(event_dset_name, event_data, loc)
 
-        if not track_ref is None and not hit_ref is None:
+        if not track_idcs is None and not hit_idcs is None:
             return event_idx
         # store hits and tracks if none are specified
 
-        event_ref = self.datafile[event_dset_name].regionref[event_idx]
-        if hit_ref is None:
-            # store hits
+        event_idcs = [event_idx]
+        if hit_ref is None and event.hits:
             hit_idcs = []
+            # store hits
             for hit in event.hits:
-                hit_idcs += [self.write_hit(hit, None, event_ref=event_ref, track_ref=track_ref)]
-            hit_dset_name = self.type_lookup[type(event.hits[0])]
-            if event.hits:
-                hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
-            else:
-                hit_ref = None
+                hit_idcs += [self.write_hit(hit, None, event_idcs=event_idcs, track_idcs=track_idcs)]
+            hit_ref = self.datafile[hit_dset_name].regionref[sorted(hit_idcs)]
             # re-store event
             event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
             event_idx = self.write_data(event_dset_name, event_data, event_idx)
 
-        if track_ref is None:
+        if track_idcs is None and event.reco_objs:
             # store tracks
             track_idcs = []
             tracks = [reco_obj for reco_obj in event.reco_objs if isinstance(reco_obj, reco3d_types.Track)]
-            if tracks and track_ref is None:
-                track_dset_name = self.type_lookup[type(tracks[0])]
+            if tracks:
                 for track in tracks:
                     # find hits associated with track
-                    hit_idcs = []
+                    track_hit_idcs = []
                     for hit in track.hits:
-                        hit_idcs += [self.find(hit, hit_ref)]
-                    track_hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
+                        track_hit_idcs += [self.find(hit, hit_idcs)]
+                    track_hit_ref = self.datafile[hit_dset_name].regionref[sorted(track_hit_idcs)]
                     # write track with references
-                    track_idx = self.write_track(track, None, event_ref=event_ref, hit_ref=track_hit_ref)
+                    track_idx = self.write_track(track, None, event_idcs=event_idcs, hit_idcs=track_hit_idcs)
                     track_idcs += [track_idx]
-                    # write hits with references
-                    hit_track_ref = self.datafile[track_dset_name].regionref[track_idx]
-                    for hit_idx, hit in zip(hit_idcs, track.hits):
-                        self.write_hit(hit, hit_idx, event_ref=event_ref, track_ref=hit_track_ref)
-            if tracks:
-                track_ref = self.datafile[track_dset_name].regionref[track_idcs]
-            else:
-                track_ref = None
-            # re-store event
-            event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
-            event_idx = self.write_data(event_dset_name, event_data, event_idx)
+                    # write hits with new reference
+                    hit_track_idcs = [track_idx]
+                    for hit_idx, hit in zip(track_hit_idcs, track.hits):
+                        self.write_hit(hit, hit_idx, event_idcs=event_idcs, track_idcs=hit_track_idcs)
+
+                    track_ref = self.datafile[track_dset_name].regionref[sorted(track_idcs)]
+                    # re-store event
+                    event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
+                    event_idx = self.write_data(event_dset_name, event_data, event_idx)
         return event_idx
 
     def find(self, obj, search_region=None):
         '''
-        Look for objects that match data object in a region.
+        Look for objects that match data object at indices specified in search_region.
         Return index of row that matches or None, if it can't be found
         '''
         if not isinstance(obj, tuple(self.type_lookup.keys())):
             return None
         dset_name = self.type_lookup[type(obj)]
+        search_idcs = search_region
         region = search_region
-        if region is None:
+        if search_idcs is None:
             # search all data
-            region = self.datafile[dset_name].regionref[:]
-        elif isinstance(region, (list, slice, int)):
+            search_idcs = range(self.datafile[dset_name].shape[0])
+            region = self.datafile[dset_name].regionref[search_idcs]
+        elif isinstance(region, (list, slice, tuple)):
             # search by indices
-            region = self.datafile[dset_name].regionref[search_region]
-        elif isinstance(region, h5py.RegionReference):
-            # search by reference
-            region = region
+            region = self.datafile[dset_name].regionref[search_idcs]
         else:
             raise ValueError('cannot search with region type')
 
-        for row_idx, row_data in enumerate(self.datafile[dset_name][region]):
+        for row_idx, row_data in zip(search_idcs, self.datafile[dset_name][region]):
             obj_to_compare = None
             if dset_name == 'hits':
                 obj_to_compare = self.hdf5_to_hit(row_data)
@@ -556,5 +569,5 @@ class LArPixHDF5Converter(Converter):
             elif dset_name == 'events':
                 obj_to_compare = self.hdf5_to_event(row_data)
             if obj == obj_to_compare:
-                return row_idx
+                return int(row_idx)
         return None
