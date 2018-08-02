@@ -86,6 +86,8 @@ def test_LArPixHDF5Converter():
 
         # test reading tracks
         read_track = c.read(Track)
+        c.logger.debug(read_track)
+        c.logger.debug(test_track)
         assert read_track == test_track
         assert c.read_idx['tracks'] == 1
 

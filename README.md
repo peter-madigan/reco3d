@@ -155,10 +155,14 @@ reco3d --- types --- basic_types --- * Empty *
         |                                  |- LArPixCalibrationProcess(Process)
         |                                  |- LArPixDataWriterProcess(Process)
         |                                  |- LArPixEventBuilderProcess(Process)
+        |                                  |- LArPixTrackReconstructionProcess(Process)
         |
         |- tools --- logging --- LoggingTool(object)
                   |
                   |- options --- OptionsTool(object)
+                  |
+                  |- algorithms --- hough --- Line(object)
+                  |                        |- HoughParameters(object)
                   |
                   |- python
 ```

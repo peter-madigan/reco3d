@@ -1,6 +1,7 @@
 '''
 This module contains primitive data types used by the LArPix reconstruction
 '''
+import numpy as np
 
 class Hit(object):
     ''' The basic primitive type used in larpix-reconstruction represents a single trigger of a larpix channel '''
@@ -65,7 +66,19 @@ class HitCollection(object):
         return nhit
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        if not isinstance(other, type(self)):
+            return False
+        for key, value in self.__dict__.items():
+            if isinstance(value, np.ndarray):
+                if not len(value) == getattr(other, key):
+                    return False
+                elif not (all([self_value in getattr(other, key) for self_value in value])
+                          and all([other_value in value for other_value in getattr(other, key)])):
+                    return False
+            else:
+                if not value == getattr(other, key):
+                    return False
+        return True
 
     def get_hit_attr(self, attr, default=None):
         ''' Get a list of the specified attribute from event hits '''
@@ -110,14 +123,24 @@ class Track(HitCollection):
     A class representing a reconstructed straight line segment and associated
     hits
     '''
-    def __init__(self, hits, theta, phi, xp, yp, vertices=[], cov=None, **kwargs):
+    def __init__(self, hits, theta, phi, xp, yp, vertices=None, cov=None, **kwargs):
         super().__init__(hits)
         self.theta = theta
         self.phi = phi
         self.xp = xp
         self.yp = yp
-        self.vertices = []
+        if vertices is None:
+            self.vertices = []
+        else:
+            self.vertices = vertices
         self.cov = cov
+
+    def __str__(self):
+        string = HitCollection.__str__(self)[:-1]
+        string += ', theta={theta}, phi={phi}, xp={xp}, yp={yp}, vertices={vertices},'\
+            ' cov={cov})'.format(**vars(self))
+        return string
+
 
 class Shower(HitCollection):
     ''' A class representing a shower '''

@@ -1,3 +1,4 @@
+import operator
 from reco3d.resources.basic_resources import Resource
 from reco3d.converters.larpix_converters import (LArPixHDF5Converter, LArPixSerialConverter)
 import reco3d.tools.python as reco3d_pytools
@@ -14,7 +15,7 @@ class LArPixSerialDataResource(Resource):
      - `sort_field`: attribute to sort objects in read queue by (default: `ts`)
 
     '''
-    req_opts = Resource.req_opts + []
+    req_opts = Resource.req_opts + ['LArPixSerialConverter']
     default_opts = reco3d_pytools.combine_dicts(\
         Resource.default_opts, { 'read_queue_length' : 2000, # length of sorted read queue
                                  'sort_read_queue' : True, # sort objects in read queue?
@@ -81,7 +82,7 @@ class LArPixDataResource(Resource):
      - `write_queue_length`: number of objects to hold in write queue before flushing to output file
 
     '''
-    req_opts = Resource.req_opts + []
+    req_opts = Resource.req_opts + ['LArPixHDF5Converter']
     default_opts = reco3d_pytools.combine_dicts(\
         Resource.default_opts, { 'write_queue_length' : 100 # length of write queue before flushing to file
                                  })
