@@ -623,6 +623,5 @@ def run_iterative_hough(points, params, threshold, cache=None):
             for i in lines[best_fit_line]:
                 found_mask[i] = True
             print('found good line with %d points' % len(closer))
-            # FIXME: this should go into the log
 
     return lines, points, params

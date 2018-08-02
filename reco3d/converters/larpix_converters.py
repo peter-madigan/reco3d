@@ -486,7 +486,6 @@ class LArPixHDF5Converter(Converter):
 
     def write_event(self, event, loc, track_idcs=None, hit_idcs=None, **kwargs):
         ''' Write an event at row index specified by `loc` '''
-        # FIXME this method is a very long mess!
         # write event in correct location with uninitialized references
         hit_dset_name = self.type_lookup[reco3d_types.Hit]
         hit_ref = None

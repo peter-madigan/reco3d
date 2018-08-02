@@ -11,13 +11,13 @@ def test_OptionsTool_file_init():
     test_dict = {'a' : 0, 'test_overwrite' : 1}
     ot = OptionsTool(options_dict=test_dict, filename='test_conf.json')
     assert ot['name'] is None
-    assert not '_test_hidden' in ot
+    assert '_test_hidden' not in ot
     assert ot['_test_hidden'] is None
     assert ot['a'] == 0
     assert ot['test_key0'] == 'test_value0'
     assert ot['test_overwrite'] == 1
-    assert type(ot['test_named_obj']) is dict
-    assert type(ot.get('test_named_obj')) is OptionsTool
+    assert isinstance(ot['test_named_obj'], dict)
+    assert isinstance(ot.get('test_named_obj'), OptionsTool)
     obj_options = ot.get('test_named_obj')
     assert obj_options['test_key1'] == 'test_value1'
     subobj_options_top_level = ot.get('test_named_subobj')

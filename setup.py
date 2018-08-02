@@ -1,13 +1,13 @@
-from setuptools import setup
-from codecs import open
+import setuptools
+import codecs
 import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
+with codecs.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-setup(
+setuptools.setup(
         name='reco3d',
         version='0.0.0',
         description='Process 3D hit data from TPCs',

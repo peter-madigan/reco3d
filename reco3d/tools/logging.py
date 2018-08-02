@@ -90,8 +90,7 @@ class LoggingTool(object):
         ''' Return python Logger object with name '''
         if name is None:
             return logging.getLogger('reco3d')
-        else:
-            return logging.getLogger(name)
+        return logging.getLogger(name)
 
     def add_filehandler(self, filename, level):
         ''' Add a FileHandler to current handlers list '''

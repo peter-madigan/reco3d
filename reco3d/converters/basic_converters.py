@@ -51,5 +51,3 @@ class Converter(object):
         Return True if successful, False if not
         '''
         return False
-
-

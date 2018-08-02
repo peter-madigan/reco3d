@@ -59,7 +59,7 @@ class HitCollection(object):
             return self.get_hit_attr(key)
         elif isinstance(key, dict):
             return self.get_hit_match(key)
-        elif isinstance(key, list) or isinstance(key, tuple):
+        elif isinstance(key, (list, tuple)):
             return [self.hits[idx] for idx in key]
 
     def __len__(self):
@@ -84,8 +84,7 @@ class HitCollection(object):
         ''' Get a list of the specified attribute from event hits '''
         if not default is None:
             return [getattr(hit, attr, default) for hit in self.hits]
-        else:
-            return [getattr(hit, attr) for hit in self.hits]
+        return [getattr(hit, attr) for hit in self.hits]
 
     def get_hit_match(self, attr_value_dict):
         '''
