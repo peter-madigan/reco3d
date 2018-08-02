@@ -402,7 +402,6 @@ class LArPixTrackReconstructionProcess(Process):
         x = np.array(event['px'])/10
         y = np.array(event['py'])/10
         z = np.array(event['ts'] - event.ts_start)/1000
-        # FIXME: assumes t0 is at event start
         points = np.array(list(zip(x,y,z)))
         params = hough.HoughParameters()
         params.ndirections = self.hough_ndir
