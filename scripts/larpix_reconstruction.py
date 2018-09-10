@@ -55,29 +55,37 @@ logger.info('Configuration - {}'.format(options))
 infile_options = options.get('LArPixSerialDataResource')
 infile_resource = LArPixSerialDataResource(infile_options)
 
+# Create an active memory resource for the event builder (basically just a stack)
+active_options = options.get('LArPixActiveResource')
+active_resource = Resource(active_options)
+
 # Create output file
 outfile_options = options.get('LArPixDataResource')
 outfile_resource = LArPixDataResource(outfile_options)
 
 # Create a hit reader
 reader_options = options.get('LArPixDataReaderProcess')
-reader_process = LArPixDataReaderProcess(reader_options, in_resource=infile_resource, out_resource=outfile_resource)
+reader_process = LArPixDataReaderProcess(reader_options, in_resource=infile_resource, out_resource=active_resource)
 
 # Create a hit counter
 counter_options = options.get('LArPixDataCounterProcess')
-counter_process = LArPixDataCounterProcess(counter_options, data_resource=outfile_resource)
+counter_process = LArPixDataCounterProcess(counter_options, data_resource=active_resource)
+
+# Create a trigger builder
+triggerbuilder_options = options.get('LArPixTriggerBuilderProcess')
+triggerbuilder_process = LArPixTriggerBuilderProcess(triggerbuilder_process, active_resource=active_resource)
 
 # Create an event builder
 eventbuilder_options = options.get('LArPixEventBuilderProcess')
-eventbuilder_process = LArPixEventBuilderProcess(eventbuilder_options, data_resource=outfile_resource)
+eventbuilder_process = LArPixEventBuilderProcess(eventbuilder_options, active_resource=active_resource, out_resource=outfile_resource)
 
 # Create an event counter
 eventcounter_options = options.get('LArPixDataCounterProcess_EventCounter')
-eventcounter_process = LArPixDataCounterProcess(eventcounter_options, data_resource=outfile_resource)
+eventcounter_process = LArPixDataCounterProcess(eventcounter_options, data_resource=out_resource)
 
 # Create a track reconstruction
 trackreco_options = options.get('LArPixTrackReconstructionProcess')
-trackreco_process = LArPixTrackReconstructionProcess(trackreco_options, data_resource=outfile_resource)
+trackreco_process = LArPixTrackReconstructionProcess(trackreco_options, data_resource=out_resource)
 
 # Create an event writer
 writer_options = options.get('LArPixDataWriterProcess')
@@ -86,7 +94,7 @@ writer_process = LArPixDataWriterProcess(writer_options, in_resource=outfile_res
 # Add processes to manager 
 manager.add_processes(reader_process, eventbuilder_process, trackreco_process, writer_process, counter_process)
 # Add resources to manager
-manager.add_resources(infile_resource, outfile_resource)
+manager.add_resources(infile_resource, active_resource, outfile_resource)
 
 
 # Run!
