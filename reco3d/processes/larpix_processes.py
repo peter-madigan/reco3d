@@ -252,7 +252,7 @@ class LArPixTriggerBuilderProcess(Process):
     defined by the channel mask and a coincidence interval. To register, the entire channel
     mask must be triggered within the coincidence interval.
     options:
-    - `channel_mask`: dict of (chipid, channel) pairs with external triggers enabled
+    - `channel_mask`: list of (chipid, channel) pairs with external triggers enabled
     - `delay` : delay between real time trigger and channel trigger [ns]
     - `dt_cut`: time width of coincidence [ns]
 
@@ -262,8 +262,8 @@ class LArPixTriggerBuilderProcess(Process):
     '''
     req_opts = Process.req_opts + []
     default_opts = reco3d_pytools.combine_dicts(\
-        Process.default_opts, { 'channel_mask' : {}, # dict of (chip id, channel) pairs that
-                                                     # are externally triggered
+        Process.default_opts, { 'channel_mask' : {}, # dict of (chip id : channel_list) pairs
+                                                     # that are externally triggered
                                 'delay' : 997e6, # delay between real time trigger and channel
                                                  # trigger [ns]
                                 'dt_cut' : 1e3 }) # max dt between hits to be counted as
@@ -277,7 +277,8 @@ class LArPixTriggerBuilderProcess(Process):
         ''' Apply options to process '''
         super().config()
 
-        self.channel_mask = self.options['channel_mask']
+        self.channel_mask = dict([(int(chipid), channel_list)
+                                  for chipid, channel_list in self.options['channel_mask'].items()])
         self.dt_cut = self.options['dt_cut']
         self.delay = self.options['delay']
 
@@ -317,10 +318,11 @@ class LArPixTriggerBuilderProcess(Process):
 
     def is_cluster(self, hits):
         ''' Apply event selection criteria '''
-        hit_collection = larpix_types.HitCollection(hits)
+        hit_collection = reco3d_types.HitCollection(hits)
         triggered_channels = list(zip(hit_collection['chipid'], hit_collection['channelid']))
         if any([(chipid, channel) not in triggered_channels
-                for chipid, channel in self.channel_mask.items()]):
+                for chipid, channel_list in self.channel_mask.items()
+                for channel in channel_list]):
             return False
         return True
 
@@ -330,8 +332,7 @@ class LArPixTriggerBuilderProcess(Process):
         hit_clusters = []
         curr_cluster = []
         for hit in hits:
-            if self.is_associated(hit, curr_cluster) and (len(curr_cluster) < self.max_nhit
-                                                          or self.max_nhit < 0):
+            if self.is_associated(hit, curr_cluster):
                 curr_cluster.append(hit)
             elif self.is_cluster(curr_cluster):
                 hit_clusters += [curr_cluster]
@@ -420,9 +421,11 @@ class LArPixEventBuilderProcess(Process):
         '''
         super().run()
 
-        hits = reversed(self.resources['active_resource'].pop(reco3d_types.Hit, n=-1))
+        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
+        if hits: hits = reversed(hits)
         events, skipped_hits, remaining_hits = self.find_events(hits)
-        triggers = reversed(self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1))
+        triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
+        if triggers: triggers = reversed(triggers)
 
         associated_events, unassociated_events = [], []
         if self.associate_triggers:
@@ -509,6 +512,8 @@ class LArPixEventBuilderProcess(Process):
         '''
         associated_events = []
         unassociated_events = []
+        if not triggers or not events:
+            return [], events
         for event in events:
             associated_triggers = []
             for trigger in triggers:

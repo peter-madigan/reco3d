@@ -15,12 +15,14 @@
 
         "LArPixEventBuilderProcess" : {
                 "max_nhit" : -1,
-                "min_nhit" : 5,
-                "dt_cut" : 10e3
+                "min_nhit" : 10,
+                "dt_cut" : 10e3,
+                "associate_triggers" : true,
+                "trigger_window" : [0, 300e3]
                 },
 
         "LArPixTrackReconstructionProcess" : {
-                "hough_threshold" : 5,
+                "hough_threshold" : 10,
                 "hough_ndir" : 1000,
                 "hough_npos" : 30
                 },
@@ -40,7 +42,17 @@
                 },
 
         "LArPixDataCounterProcess" : {
-                "dtypes" : null,
-                "interval" : 1000
+                "dtypes" : ["ExternalTrigger", "Event"],
+                "interval" : 100
+                },
+
+        "LArPixTriggerBuilderProcess" : {
+                "channel_mask" : {
+                                "48":[7], "51":[7], "53":[7], "57":[7],
+                                "80":[7], "83":[7], "85":[7], "86":[7],
+                                "89":[7], "90":[7], "92":[7], "95":[7]
+                                },
+                "delay" : 997e6,
+                "dt_cut" : 1e3
                 }
 }

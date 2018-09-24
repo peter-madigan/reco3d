@@ -124,7 +124,7 @@ class LArPixHDF5Converter(Converter):
     type_lookup = {
         reco3d_types.Hit : 'hits',
         reco3d_types.Event : 'events',
-        reco3d_types.Track : 'tracks'
+        reco3d_types.Track : 'tracks',
         reco3d_types.ExternalTrigger : 'triggers'
         }
     rev_type_lookup = dict([(item, key) for key, item in type_lookup.items()])
@@ -148,7 +148,7 @@ class LArPixHDF5Converter(Converter):
             ('sigma_theta', 'f8'), ('sigma_phi', 'f8'), ('sigma_x', 'f8'),
             ('sigma_y', 'f8')],
         'triggers' : [
-            ('trig_id', 'i8'), ('event_ref', region_ref), ('trig_id', 'i8'),
+            ('trig_id', 'i8'), ('event_ref', region_ref),
             ('ts', 'i8'), ('delay', 'i8'), ('trig_type', 'i8')]
         }
 
@@ -374,8 +374,9 @@ class LArPixHDF5Converter(Converter):
         ''' Returns a track object represented by the data '''
         new_kwargs = {}
         hits = []
-        for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
-            hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
+        if data['hit_ref']:
+            for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
+                hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
         new_kwargs['hits'] = hits
         if any([data[key] == -9999 for key in ['sigma_theta', 'sigma_phi', 'sigma_x']]):
             new_kwargs['cov'] = None
@@ -390,16 +391,19 @@ class LArPixHDF5Converter(Converter):
         ''' Returns an event object represented by the data '''
         new_kwargs = {}
         hits = []
-        for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
-            hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
+        if data['hit_ref']:
+            for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
+                hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
         new_kwargs['hits'] = hits
         triggers = []
-        for trigger_data in self.datafile[data['trigger_ref']][data['trigger_ref']]:
-            triggers += [self.hdf5_to_trigger(trigger_data, replace_defaults=replace_defaults)]
+        if data['trigger_ref']:
+            for trigger_data in self.datafile[data['trigger_ref']][data['trigger_ref']]:
+                triggers += [self.hdf5_to_trigger(trigger_data, replace_defaults=replace_defaults)]
         new_kwargs['triggers'] = triggers
         new_kwargs['reco_objs'] = []
-        for track_data in self.datafile[data['track_ref']][data['track_ref']]:
-            new_kwargs['reco_objs'] += [self.hdf5_to_track(track_data, replace_defaults=replace_defaults)]
+        if data['track_ref']:
+            for track_data in self.datafile[data['track_ref']][data['track_ref']]:
+                new_kwargs['reco_objs'] += [self.hdf5_to_track(track_data, replace_defaults=replace_defaults)]
         event = self.hdf5_to_reco3d_type(reco3d_types.Event, data, replace_defaults=replace_defaults,
                                          **new_kwargs, **kwargs)
         return event
