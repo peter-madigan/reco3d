@@ -4,6 +4,8 @@ This module contains LArPix specific processes:
  - LArPixCalibrationProcess
  - LArPixDataWriterProcess
  - LArPixEventBuilderProcess
+ - LArPixTriggerBuilderProcess
+ - LArPixTrackReconstructionProcess
 '''
 import numpy as np
 import reco3d.tools.algorithms.hough as hough
@@ -264,10 +266,10 @@ class LArPixTriggerBuilderProcess(Process):
     default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'channel_mask' : {}, # dict of (chip id : channel_list) pairs
                                                      # that are externally triggered
-                                'delay' : 997e6, # delay between real time trigger and channel
+                                'delay' : 997e3, # delay between real time trigger and channel
                                                  # trigger [ns]
                                 'dt_cut' : 1e3 }) # max dt between hits to be counted as
-                                                  # external trigger
+                                                  # external trigger [ns]
     opt_resources = {}
     req_resources = {
         'active_resource': None

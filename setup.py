@@ -22,5 +22,5 @@ setuptools.setup(
         ],
         keywords='dune physics',
         packages=['reco3d'],
-        install_requires=['pytest', 'h5py', 'numpy', 'sympy']
+        install_requires=['pytest', 'h5py>=2.7.1', 'numpy', 'sympy']
 )
