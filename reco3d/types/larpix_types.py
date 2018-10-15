@@ -47,9 +47,14 @@ class HitCollection(object):
     def __init__(self, hits, **kwargs):
         self.hits = hits
         self.nhit = len(self.hits)
-        self.ts_start = min(self.get_hit_attr('ts'))
-        self.ts_end = max(self.get_hit_attr('ts'))
-        self.q = sum(self.get_hit_attr('q'))
+        if self.nhit > 0:
+            self.ts_start = min(self.get_hit_attr('ts'))
+            self.ts_end = max(self.get_hit_attr('ts'))
+            self.q = sum(self.get_hit_attr('q'))
+        else:
+            self.ts_start = None
+            self.ts_end = None
+            self.q = None
 
     def __str__(self):
         string = '{}(hits=[\n\t{}]\n\t)'.format(self.__class__.__name__, \

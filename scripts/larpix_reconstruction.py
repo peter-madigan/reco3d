@@ -77,7 +77,7 @@ eventbuilder_process = LArPixEventBuilderProcess(eventbuilder_options, active_re
 
 # Create an event counter
 counter_options = options.get('LArPixDataCounterProcess')
-counter_process = LArPixDataCounterProcess(counter_options, data_resource=active_resource)
+counter_process = LArPixDataCounterProcess(counter_options, data_resource=outfile_resource)
 
 # Create a track reconstruction
 trackreco_options = options.get('LArPixTrackReconstructionProcess')

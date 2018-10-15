@@ -313,9 +313,8 @@ class LArPixTriggerBuilderProcess(Process):
         elif not hits:
             return True
         else:
-            for other in hits:
-                if abs(hit.ts - other.ts) < self.dt_cut:
-                    return True
+            if all([abs(hit.ts - other.ts) < self.dt_cut for other in hits]):
+                return True
         return False
 
     def is_cluster(self, hits):
@@ -329,7 +328,7 @@ class LArPixTriggerBuilderProcess(Process):
         return True
 
     def find_hit_clusters(self, hits):
-        ''' Find isolated hit clusters '''
+        ''' Find and extract trigger hit clusters '''
         prev_hits = []
         hit_clusters = []
         curr_cluster = []
@@ -337,7 +336,14 @@ class LArPixTriggerBuilderProcess(Process):
             if self.is_associated(hit, curr_cluster):
                 curr_cluster.append(hit)
             elif self.is_cluster(curr_cluster):
-                hit_clusters += [curr_cluster]
+                # keep only triggers that match the trigger mask in the hit cluster
+                trigger = []
+                for cluster_hit in curr_cluster:
+                    if cluster_hit.chipid in self.channel_mask.keys() and cluster_hit.chipid in self.channel_mask[cluster_hit.chipid]:
+                        trigger.append(cluster_hit)
+                    else:
+                        prev_hits.append(cluster_hit)
+                hit_clusters += [trigger]
                 curr_cluster = [hit]
             else:
                 prev_hits += curr_cluster
@@ -346,14 +352,13 @@ class LArPixTriggerBuilderProcess(Process):
 
     def find_triggers(self, hits):
         '''
-        Find isolated hit clusters that match channel mask and convert them into trigger objects
+        Find trigger hit clusters that match channel mask and convert them into trigger objects
         Note: trigger objects are created without trigger ids (this must be handled else where)
         '''
         skipped_hits, clusters, remaining_hits = self.find_hit_clusters(hits)
         triggers = []
         for cluster in clusters:
             hit_collection = reco3d_types.HitCollection(cluster)
-            ts = min(hit_collection['ts'])
             triggers += [reco3d_types.ExternalTrigger(trig_id=None,
                                                       ts=hit_collection.ts_start,
                                                       delay=self.delay)]
@@ -424,10 +429,12 @@ class LArPixEventBuilderProcess(Process):
         super().run()
 
         hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
-        if hits: hits = reversed(hits)
+        if hits:
+            hits = reversed(hits)
         events, skipped_hits, remaining_hits = self.find_events(hits)
         triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
-        if triggers: triggers = reversed(triggers)
+        if triggers:
+            triggers = reversed(triggers)
 
         associated_events, unassociated_events = [], []
         if self.associate_triggers:
