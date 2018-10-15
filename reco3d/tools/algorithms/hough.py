@@ -42,6 +42,8 @@ class Line(object):
         self.xp = xp
         self.yp = yp
         self.cov = None
+        self.start = None
+        self.end = None
 
     def coords(self):
         '''
@@ -183,11 +185,11 @@ def fibonacci_hemisphere(samples):
     points = np.empty((samples, 3))
     samples = samples * 2
     offset = 2./samples
-    increment = np.pi * (3. - np.sqrt(5.))
+    increment = np.pi * (3. - np.sqrt(5.));
 
     index = 0
     for i in range(samples):
-        y = ((i * offset) - 1) + (offset / 2)
+        y = ((i * offset) - 1) + (offset / 2);
         r = np.sqrt(1 - pow(y,2))
 
         phi = ((i + 1) % samples) * increment
@@ -219,7 +221,7 @@ def cartesian_to_spherical(points, constrain=False):
     theta = np.arccos(points[:,2])
     return np.vstack((theta, phi)).T
 
-def get_xp_yp_edges(points, nbins):
+def get_xp_yp_edges(points, dr):
     '''
         Given the point cloud, return (xp_edges, yp_edges).
     '''
@@ -227,7 +229,10 @@ def get_xp_yp_edges(points, nbins):
     mins = points.min(axis=0)
     ranges = 0.5 * (maxes - mins)
     range_dist = np.linalg.norm(ranges)
-    xp_edges = np.linspace(-range_dist, range_dist, nbins+1)
+    # Round up range_dist to the nearest integer multiple of dr
+    nbins = int(np.ceil(range_dist/dr))
+    range_dist = nbins * dr
+    xp_edges = np.linspace(-range_dist/2, range_dist/2, nbins+1)
     yp_edges = xp_edges.copy()
     return xp_edges, yp_edges
 
@@ -276,6 +281,10 @@ class HoughParameters(object):
     '''
         Keep track of the parameters used for a series of Hough
         transforms.
+
+        The user should specify ndirections and dr. The other attributes
+        of this object are computed by the various Hough Transformation
+        functions.
 
         The shape of the accumulator array is: (ndirections, npositions,
         npositions).
@@ -338,7 +347,7 @@ def compute_hough(points, params, op='+'):
     xp_edges = None
     yp_edges = None
     if params.position_bins is None:
-        xp_edges, yp_edges = get_xp_yp_edges(points, params.npositions)
+        xp_edges, yp_edges = get_xp_yp_edges(points, params.dr)
         params.position_bins = xp_edges
         params.dr = xp_edges[1] - xp_edges[0]
     else:
@@ -432,7 +441,7 @@ def setup_fit_errors():
     y = sp.Matrix([[yx], [yy], [yz]])
     I = sp.eye(3)
     # Split the chi2 up by each term in the summation
-    chi2_cartesian = ((I - bvec*bvec.T)*(avec-y)).T*(I - bvec*bvec.T)*(avec-y)
+    chi2_cartesian = ((avec-y).T*(I - bvec*bvec.T)*(avec-y))[0]
     chi2_angles = chi2_cartesian.subs(conversions_b)
     coords = sp.symbols('theta phi ax ay az')
     coords_deriv = coords[:-1]
@@ -443,7 +452,7 @@ def setup_fit_errors():
         for j, coord2 in enumerate(coords_deriv[i:]):
             deriv_coords.append((i, i+j, coord1, coord2))
     for i, j, coord1, coord2 in deriv_coords:
-        term_abstract = sp.diff(chi2_angles, coord1, coord2)[0]
+        term_abstract = sp.diff(chi2_angles, coord1, coord2)
         derivs.append((i, j, coord1, coord2, term_abstract))
     return derivs
 
@@ -593,6 +602,51 @@ def iterate_hough_once(points, params, threshold, undo_points=None):
         closer, farther, mask, best_fit_line = None, None, None, None
     return (closer, farther, params, mask, best_fit_line)
 
+def get_endpoints(line, points):
+    '''
+        Compute the endpoints of the line based on the given points.
+
+        Project the points onto the line and pick the outermost points'
+        projections. The endpoints lie on the geometrical line, not
+        necessarily on any actual data space point.
+
+        To project the points using the operator b * b.T, we must ensure
+        the line actually goes through the origin (i.e. is a true
+        vector subspace), so we will translate the line to the origin,
+        do the projection, and then translate back.
+
+    '''
+    b = spherical_to_cartesian(line.theta, line.phi)
+    b.shape = (3, 1)
+    projector = b * b.T
+
+    point_on_line = line.points('x', points[0,0], points[0,0] + 10, 2)[0]
+    points_translated = points - point_on_line
+    projections = np.matmul(projector, points_translated.reshape((-1, 3, 1)))
+    projections.shape = ((-1, 3))
+    projections += point_on_line
+    # The endpoints have projections iwth the greatest and least z
+    # coordinates
+    arg_min_z = np.argmin(projections[:,2])
+    arg_max_z = np.argmax(projections[:,2])
+    start, end = projections[arg_min_z], projections[arg_max_z]
+    return start, end
+
+
+def spherical_to_cartesian(theta, phi):
+    '''
+        Return a numpy array with the x, y, z coordinates given by theta
+        and phi.
+
+    '''
+    sintheta = np.sin(theta)
+    bx = np.cos(phi)*sintheta
+    by = np.sin(phi)*sintheta
+    bz = np.cos(theta)
+    direction = np.array([bx, by, bz])
+    return direction
+
+
 def run_iterative_hough(points, params, threshold, cache=None):
     '''
         Execute the iterative Hough transform on the given points.
@@ -617,11 +671,14 @@ def run_iterative_hough(points, params, threshold, cache=None):
         found_good_line = (closer is not None)
         if found_good_line:
             best_fit_line.cov = fit_errors(closer, best_fit_line, cache)
+            start, end = get_endpoints(best_fit_line, closer)
+            best_fit_line.start = start
+            best_fit_line.end = end
             lines[best_fit_line] = np.where(~mask)[0]
             undo_points = points[[i for i in lines[best_fit_line] if
                     not found_mask[i]]]
             for i in lines[best_fit_line]:
                 found_mask[i] = True
-            print('found good line with %d points' % len(closer))
+            #logger.debug('found good line with %d points' % len(closer))
 
     return lines, points, params

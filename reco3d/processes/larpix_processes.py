@@ -443,7 +443,9 @@ class LArPixEventBuilderProcess(Process):
         if self.associate_triggers:
             associated_events, unassociated_events = self.find_associated_triggers(events, triggers)
 
-        self.preserve_unfinished(remaining_hits, unassociated_events)
+        self.preserve_unfinished(remaining_hits)
+        if self.associate_triggers:
+            self.preserve_unfinished(unassociated_events)
         self.resources['active_resource'].push(skipped_hits)
         self.resources['active_resource'].push(remaining_hits)
         self.resources['active_resource'].push(unassociated_events)
@@ -548,6 +550,7 @@ class LArPixTrackReconstructionProcess(Process):
      - `hough_threshold`: minimum number of hits in a track (default: 5)
      - `hough_ndir`: number of directions for Hough transform to generate (default: 1000)
      - `hough_npos`:
+     - `hough_dr`: cylindrical radius cut to include in fit
 
     resources:
      - `data_resource`: resource to provide stack. Accepted types: all
@@ -557,22 +560,24 @@ class LArPixTrackReconstructionProcess(Process):
     default_ops = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'hough_threshold' : 5,
                                 'hough_ndir' : 1000,
-                                'hough_npos' : 30 })
+                                'hough_npos' : 30,
+                                'hough_dr' : 3})
     opt_resources = {}
     req_resources = {
         'data_resource': None
         }
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
         self.hough_threshold = self.options['hough_threshold']
         self.hough_ndir = self.options['hough_ndir']
         self.hough_npos = self.options['hough_npos']
+        self.hough_dr = self.options['hough_dr']
         self.hough_cache = hough.setup_fit_errors()
 
-    def run(self):
+    def run(self): # Process method
         '''
         Pull all events from stack. For each event, perform the track reconstruction
         algorithm. Put events back into the stack with associated tracks.
@@ -597,6 +602,7 @@ class LArPixTrackReconstructionProcess(Process):
         params = hough.HoughParameters()
         params.ndirections = self.hough_ndir
         params.npositions = self.hough_npos
+        params.dr = self.hough_dr
         lines, points, params = hough.run_iterative_hough(points,
                 params, self.hough_threshold, self.hough_cache)
 
