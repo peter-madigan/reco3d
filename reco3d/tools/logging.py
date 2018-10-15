@@ -20,6 +20,17 @@ Each LoggingTool object provides access to the following logging methods:
 '''
 import logging
 import sys
+from timeit import default_timer
+
+def timed(method):
+    ''' Decorator for measuring execution times '''
+    def timed_method(*args, **kwargs):
+        ti = default_timer()
+        result = method(*args, **kwargs)
+        tf = default_timer()
+        print('{}: {}'.format(str(method), tf - ti))
+        return result
+    return timed_method
 
 class LoggingTool(object):
     # default formatting string
