@@ -124,7 +124,8 @@ class LArPixHDF5Converter(Converter):
     type_lookup = {
         reco3d_types.Hit : 'hits',
         reco3d_types.Event : 'events',
-        reco3d_types.Track : 'tracks'
+        reco3d_types.Track : 'tracks',
+        reco3d_types.ExternalTrigger : 'triggers'
         }
     rev_type_lookup = dict([(item, key) for key, item in type_lookup.items()])
 
@@ -137,7 +138,8 @@ class LArPixHDF5Converter(Converter):
             ('geom', 'i8'), ('event_ref', region_ref), ('track_ref', region_ref)],
         'events' : [
             ('evid', 'i8'), ('track_ref', region_ref), ('hit_ref', region_ref),
-            ('nhit', 'i8'), ('q', 'i8'), ('ts_start', 'i8'), ('ts_end', 'i8')],
+            ('nhit', 'i8'), ('q', 'i8'), ('ts_start', 'i8'), ('ts_end', 'i8'),
+            ('trigger_ref', region_ref)],
         'tracks' : [
             ('track_id','i8'), ('event_ref', region_ref), ('hit_ref', region_ref),
             ('theta', 'f8'),
@@ -145,6 +147,9 @@ class LArPixHDF5Converter(Converter):
             ('q', 'i8'), ('ts_start', 'i8'), ('ts_end', 'i8'),
             ('sigma_theta', 'f8'), ('sigma_phi', 'f8'), ('sigma_x', 'f8'),
             ('sigma_y', 'f8')],
+        'triggers' : [
+            ('trig_id', 'i8'), ('event_ref', region_ref),
+            ('ts', 'i8'), ('delay', 'i8'), ('trig_type', 'i8')]
         }
 
     def __init__(self, options):
@@ -207,6 +212,10 @@ class LArPixHDF5Converter(Converter):
             event = self.read_event(loc)
             return event
 
+        elif dset_name == 'triggers':
+            trigger = self.read_trigger(loc)
+            return trigger
+
         return None
 
     def write(self, data, loc=None): # Converter method
@@ -230,6 +239,10 @@ class LArPixHDF5Converter(Converter):
 
         elif dset_name == 'events':
             self.write_event(data, loc)
+            return True
+
+        elif dset_name == 'trigger':
+            self.write_trigger(data, loc)
             return True
 
         return False
@@ -302,12 +315,22 @@ class LArPixHDF5Converter(Converter):
                                         **new_kwargs, **kwargs)
         return data
 
-    def event_to_hdf5(self, event, idx=None, hit_ref=None, track_ref=None, **kwargs):
+    def event_to_hdf5(self, event, idx=None, hit_ref=None, track_ref=None, trigger_ref=None,
+                      **kwargs):
         '''
         Returns array representing an event that can be saved in the hdf5 format
         References must be passed in as arguments
         '''
-        data = self.reco3d_type_to_hdf5(event, idx=idx, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
+        data = self.reco3d_type_to_hdf5(event, idx=idx, hit_ref=hit_ref, track_ref=track_ref,
+                                        trigger_ref=trigger_ref, **kwargs)
+        return data
+
+    def trigger_to_hdf5(self, trigger, idx=None, event_ref=None, **kwargs):
+        '''
+        Returns array representing a trigger that can be saved in the hdf5 format
+        References must be passed in as arguments
+        '''
+        data = self.reco3d_typ_to_hdf5(trigger, idx=idx, event_ref=event_ref, **kwargs)
 
 # Methods for converting data to a reco3d type
     def hdf5_to_reco3d_type(self, dtype, data, replace_defaults=True, **kwargs):
@@ -351,8 +374,9 @@ class LArPixHDF5Converter(Converter):
         ''' Returns a track object represented by the data '''
         new_kwargs = {}
         hits = []
-        for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
-            hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
+        if data['hit_ref']:
+            for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
+                hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
         new_kwargs['hits'] = hits
         if any([data[key] == -9999 for key in ['sigma_theta', 'sigma_phi', 'sigma_x']]):
             new_kwargs['cov'] = None
@@ -367,15 +391,28 @@ class LArPixHDF5Converter(Converter):
         ''' Returns an event object represented by the data '''
         new_kwargs = {}
         hits = []
-        for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
-            hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
+        if data['hit_ref']:
+            for hit_data in self.datafile[data['hit_ref']][data['hit_ref']]:
+                hits += [self.hdf5_to_hit(hit_data, replace_defaults=replace_defaults)]
         new_kwargs['hits'] = hits
+        triggers = []
+        if data['trigger_ref']:
+            for trigger_data in self.datafile[data['trigger_ref']][data['trigger_ref']]:
+                triggers += [self.hdf5_to_trigger(trigger_data, replace_defaults=replace_defaults)]
+        new_kwargs['triggers'] = triggers
         new_kwargs['reco_objs'] = []
-        for track_data in self.datafile[data['track_ref']][data['track_ref']]:
-            new_kwargs['reco_objs'] += [self.hdf5_to_track(track_data, replace_defaults=replace_defaults)]
+        if data['track_ref']:
+            for track_data in self.datafile[data['track_ref']][data['track_ref']]:
+                new_kwargs['reco_objs'] += [self.hdf5_to_track(track_data, replace_defaults=replace_defaults)]
         event = self.hdf5_to_reco3d_type(reco3d_types.Event, data, replace_defaults=replace_defaults,
                                          **new_kwargs, **kwargs)
         return event
+
+    def hdf5_to_trigger(self, data, replace_defaults=True, **kwargs):
+        ''' Returns an ExternalTrigger object represented by the data '''
+        trigger = self.hdf5_to_reco3d_type(reco3d_types.ExternalTrigger, data,
+                                        replace_defaults=replace_defaults, **kwargs)
+        return trigger
 
 # Methods for reading specific data types
     def read_hit(self, loc):
@@ -422,6 +459,21 @@ class LArPixHDF5Converter(Converter):
         data = self.datafile[dset_name][read_idx]
         event = self.hdf5_to_event(data)
         return event
+
+    def read_trigger(self, loc):
+        '''
+        Return a trigger at the index specified by loc
+        If loc is None, return trigger at current index and increment index
+        '''
+        dset_name = self.type_lookup[reco3d_types.ExternalTrigger]
+        read_idx = loc
+        if read_idx is None:
+            read_idx = self.read_idx[dset_name]
+            self.read_idx[dset_name] += 1
+
+        data = self.datafile[dset_name][read_idx]
+        trigger = self.hdf5_to_trigger(data)
+        return trigger
 
 # Methods for writing data
     def write_data(self, dset_name, write_data, loc=None):
@@ -484,13 +536,18 @@ class LArPixHDF5Converter(Converter):
 
         return track_idx
 
-    def write_event(self, event, loc, track_idcs=None, hit_idcs=None, **kwargs):
+    def write_event(self, event, loc, track_idcs=None, hit_idcs=None, trigger_idcs=None,
+                    **kwargs):
         ''' Write an event at row index specified by `loc` '''
         # write event in correct location with uninitialized references
         hit_dset_name = self.type_lookup[reco3d_types.Hit]
         hit_ref = None
         if hit_idcs:
             hit_ref = self.datafile[hit_dset_name].regionref[hit_idcs]
+        trigger_dset_name = self.type_lookup[reco3d_types.ExternalTrigger]
+        trigger_ref = None
+        if trigger_idcs:
+            trigger_ref = self.datafile[trigger_dset_name].regionref[trigger_idcs]
         track_dset_name = self.type_lookup[reco3d_types.Track]
         track_ref = None
         if track_idcs:
@@ -499,9 +556,9 @@ class LArPixHDF5Converter(Converter):
         event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
         event_idx = self.write_data(event_dset_name, event_data, loc)
 
-        if not track_idcs is None and not hit_idcs is None:
+        if not track_idcs is None and not hit_idcs is None and not trigger_idcs:
             return event_idx
-        # store hits and tracks if none are specified
+        # store hits, tracks, and triggers if none are specified
 
         event_idcs = [event_idx]
         if hit_ref is None and event.hits:
@@ -511,7 +568,19 @@ class LArPixHDF5Converter(Converter):
                 hit_idcs += [self.write_hit(hit, None, event_idcs=event_idcs, track_idcs=track_idcs)]
             hit_ref = self.datafile[hit_dset_name].regionref[sorted(hit_idcs)]
             # re-store event
-            event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
+            event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref,
+                                                  trigger_ref=trigger_ref, **kwargs)
+            event_idx = self.write_data(event_dset_name, event_data, event_idx)
+
+        if trigger_ref is None and event.triggers:
+            trigger_idcs = []
+            # store hits
+            for trigger in event.triggers:
+                trigger_idcs += [self.write_trigger(trigger, None, event_idcs=event_idcs)]
+            trigger_ref = self.datafile[trigger_dset_name].regionref[sorted(trigger_idcs)]
+            # re-store event
+            event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref,
+                                                  trigger_ref=trigger_ref, **kwargs)
             event_idx = self.write_data(event_dset_name, event_data, event_idx)
 
         if track_idcs is None and event.reco_objs:
@@ -535,9 +604,20 @@ class LArPixHDF5Converter(Converter):
 
                     track_ref = self.datafile[track_dset_name].regionref[sorted(track_idcs)]
                     # re-store event
-                    event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref, track_ref=track_ref, **kwargs)
+                    event_data = self.reco3d_type_to_hdf5(event, hit_ref=hit_ref,
+                                                          track_ref=track_ref,
+                                                          trigger_ref=trigger_ref, **kwargs)
                     event_idx = self.write_data(event_dset_name, event_data, event_idx)
         return event_idx
+
+    def write_trigger(self, trigger, loc, event_idcs=None, **kwargs):
+        ''' Write a trigger to row index specified by `loc`, returns index of written trigger '''
+        hit_dset_name = self.type_lookup[type(trigger)]
+        event_ref = None
+        if event_idcs:
+            event_ref = self.datafile['events'].regionref[event_idcs]
+        trigger_data = self.reco3d_type_to_hdf5(trigger, track_ref=track_ref, **kwargs)
+        return self.write_data(trigger_dset_name, trigger_data, loc)
 
     def find(self, obj, search_region=None):
         '''
@@ -567,6 +647,8 @@ class LArPixHDF5Converter(Converter):
                 obj_to_compare = self.hdf5_to_track(row_data)
             elif dset_name == 'events':
                 obj_to_compare = self.hdf5_to_event(row_data)
+            elif dset_name == 'triggers':
+                obj_to_compare = self.hdf5_to_trigger(row_data)
             if obj == obj_to_compare:
                 return int(row_idx)
         return None

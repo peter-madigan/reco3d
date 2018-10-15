@@ -3,6 +3,23 @@ This module contains primitive data types used by the LArPix reconstruction
 '''
 import numpy as np
 
+class ExternalTrigger(object):
+    ''' A basic primitive type to store external trigger information '''
+
+    def __init__(self, trig_id, ts, delay=0, type=None):
+        self.trig_id = trig_id
+        self.ts = ts
+        self.delay = delay
+        self.trig_type = type
+
+    def __str__(self):
+        string = 'ExternalTrigger(trig_id={trig_id}, ts={ts}, delay={delay}, '\
+            'type={trig_type})'.format(**vars(self))
+        return string
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
 class Hit(object):
     ''' The basic primitive type used in larpix-reconstruction represents a single trigger of a larpix channel '''
 
@@ -30,9 +47,14 @@ class HitCollection(object):
     def __init__(self, hits, **kwargs):
         self.hits = hits
         self.nhit = len(self.hits)
-        self.ts_start = min(self.get_hit_attr('ts'))
-        self.ts_end = max(self.get_hit_attr('ts'))
-        self.q = sum(self.get_hit_attr('q'))
+        if self.nhit > 0:
+            self.ts_start = min(self.get_hit_attr('ts'))
+            self.ts_end = max(self.get_hit_attr('ts'))
+            self.q = sum(self.get_hit_attr('q'))
+        else:
+            self.ts_start = None
+            self.ts_end = None
+            self.q = None
 
     def __str__(self):
         string = '{}(hits=[\n\t{}]\n\t)'.format(self.__class__.__name__, \
@@ -103,9 +125,13 @@ class Event(HitCollection):
     A class for a collection of hits associated by the event builder, contains
     reconstructed objects
     '''
-    def __init__(self, evid, hits, reco_objs=None, **kwargs):
+    def __init__(self, evid, hits, triggers=None, reco_objs=None, **kwargs):
         super().__init__(hits)
         self.evid = evid
+        if triggers is None:
+            self.triggers = []
+        else:
+            self.triggers = triggers
         if reco_objs is None:
             self.reco_objs = []
         else:
@@ -113,7 +139,7 @@ class Event(HitCollection):
 
     def __str__(self):
         string = HitCollection.__str__(self)[:-1]
-        string += ', evid={evid}, reco_objs={reco_objs})'.format(\
+        string += ', evid={evid}, triggers={triggers}, reco_objs={reco_objs})'.format(\
             **vars(self))
         return string
 

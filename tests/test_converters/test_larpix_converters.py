@@ -12,8 +12,8 @@ def test_LArPixHDF5Converter():
     c = LArPixHDF5Converter(opts)
     assert not c.is_open
     assert c.datafile is None
-    assert c.read_idx == {'hits':0, 'events':0, 'tracks':0}
-    assert c.write_idx == {'hits':0, 'events':0, 'tracks':0}
+    assert c.read_idx == {'hits':0, 'events':0, 'tracks':0, 'triggers':0}
+    assert c.write_idx == {'hits':0, 'events':0, 'tracks':0, 'triggers':0}
 
     try:
         # test opening file

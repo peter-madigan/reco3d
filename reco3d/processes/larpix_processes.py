@@ -4,6 +4,8 @@ This module contains LArPix specific processes:
  - LArPixCalibrationProcess
  - LArPixDataWriterProcess
  - LArPixEventBuilderProcess
+ - LArPixTriggerBuilderProcess
+ - LArPixTrackReconstructionProcess
 '''
 import numpy as np
 import reco3d.tools.algorithms.hough as hough
@@ -198,7 +200,7 @@ class LArPixDataWriterProcess(Process):
      objects in resource queue
 
     resources:
-     - `in_resource`: resource to grad from stack. Accepted types: all
+     - `in_resource`: resource to grab from stack. Accepted types: all
      - `out_resource`: resource to write to. Accepted types: all
 
     '''
@@ -246,29 +248,159 @@ class LArPixDataWriterProcess(Process):
                     continue
                 self.resources['out_resource'].write(obj)
 
+class LArPixTriggerBuilderProcess(Process):
+    '''
+    This process assembles Hits in the resource stack into ExternalTriggers. A trigger is
+    defined by the channel mask and a coincidence interval. To register, the entire channel
+    mask must be triggered within the coincidence interval.
+    options:
+    - `channel_mask`: list of (chipid, channel) pairs with external triggers enabled
+    - `delay` : delay between real time trigger and channel trigger [ns]
+    - `dt_cut`: time width of coincidence [ns]
+
+    resources:
+    - `active_resource`: resource to provide stack. Accepted types: all
+
+    '''
+    req_opts = Process.req_opts + []
+    default_opts = reco3d_pytools.combine_dicts(\
+        Process.default_opts, { 'channel_mask' : {}, # dict of (chip id : channel_list) pairs
+                                                     # that are externally triggered
+                                'delay' : 997e3, # delay between real time trigger and channel
+                                                 # trigger [ns]
+                                'dt_cut' : 1e3 }) # max dt between hits to be counted as
+                                                  # external trigger [ns]
+    opt_resources = {}
+    req_resources = {
+        'active_resource': None
+        }
+
+    def config(self): # Process method
+        ''' Apply options to process '''
+        super().config()
+
+        self.channel_mask = dict([(int(chipid), channel_list)
+                                  for chipid, channel_list in self.options['channel_mask'].items()])
+        self.dt_cut = self.options['dt_cut']
+        self.delay = self.options['delay']
+
+    def run(self): # Process method
+        '''
+        Pull all hits from the stack, check if there are any isolated trigger events
+        If so, convert to a single trigger and insert into stack.
+
+        Algorithm specifics:
+         - Assumes that hits are in chronological order
+         - An trigger is defined as a cluster of hits separated by no more than `dt_cut` ns
+         between hits and covering the entire channel mask
+         - An trigger is only created if all hits are contained within a window of `dt_cut`
+        '''
+        super().run()
+
+        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
+        if hits:
+            hits = reversed(hits)
+        else:
+            return
+        triggers, skipped_hits, remaining_hits = self.find_triggers(hits)
+        if remaining_hits:
+            self.resources['active_resource'].preserve(reco3d_types.Hit)
+        self.resources['active_resource'].push(skipped_hits)
+        self.resources['active_resource'].push(remaining_hits)
+        self.resources['active_resource'].push(triggers)
+
+    def is_associated(self, hit, hits):
+        ''' Apply hit selection criteria '''
+        if hit is None:
+            return False
+        elif not hits:
+            return True
+        else:
+            if all([abs(hit.ts - other.ts) < self.dt_cut for other in hits]):
+                return True
+        return False
+
+    def is_cluster(self, hits):
+        ''' Apply event selection criteria '''
+        hit_collection = reco3d_types.HitCollection(hits)
+        triggered_channels = list(zip(hit_collection['chipid'], hit_collection['channelid']))
+        if any([(chipid, channel) not in triggered_channels
+                for chipid, channel_list in self.channel_mask.items()
+                for channel in channel_list]):
+            return False
+        return True
+
+    def find_hit_clusters(self, hits):
+        ''' Find and extract trigger hit clusters '''
+        prev_hits = []
+        hit_clusters = []
+        curr_cluster = []
+        for hit in hits:
+            if self.is_associated(hit, curr_cluster):
+                curr_cluster.append(hit)
+            elif self.is_cluster(curr_cluster):
+                # keep only triggers that match the trigger mask in the hit cluster
+                trigger = []
+                for cluster_hit in curr_cluster:
+                    if cluster_hit.chipid in self.channel_mask.keys() and cluster_hit.channelid in self.channel_mask[cluster_hit.chipid]:
+                        trigger.append(cluster_hit)
+                    else:
+                        prev_hits.append(cluster_hit)
+                hit_clusters += [trigger]
+                curr_cluster = [hit]
+            else:
+                prev_hits += curr_cluster
+                curr_cluster = [hit]
+        return prev_hits, hit_clusters, curr_cluster
+
+    def find_triggers(self, hits):
+        '''
+        Find trigger hit clusters that match channel mask and convert them into trigger objects
+        Note: trigger objects are created without trigger ids (this must be handled else where)
+        '''
+        skipped_hits, clusters, remaining_hits = self.find_hit_clusters(hits)
+        triggers = []
+        for cluster in clusters:
+            hit_collection = reco3d_types.HitCollection(cluster)
+            triggers += [reco3d_types.ExternalTrigger(trig_id=None,
+                                                      ts=hit_collection.ts_start,
+                                                      delay=self.delay)]
+        return triggers, skipped_hits, remaining_hits
+
 class LArPixEventBuilderProcess(Process):
     '''
-    This process assembles Hits in the in resource stack into Events. An Event is selected based on:
+    This process assembles Hits in the active resource stack into Events. An Event is selected based on:
      - `nhit > min_nhit`
      - max separation between hits is no more than `dt_cut` ns
     options:
      - `max_nhit`: maximum number of hits in an event (-1 sets no upper limit)
      - `min_nhit`: minimum number of hits in an event
-     - `dt_cut`: specifies Hit separation cut in ns
+     - `dt_cut`: specifies Hit separation cut [ns]
+     - `associate_triggers`: attempt to associate stack triggers to event. Not implemented!
+     - `trigger_window`: 2 element list of `[min, max]` offset to trigger delay in ns. Triggers are
+     associated if `event_start_timestamp` is within
+     `[trig_timestamp - delay + min, trig_timestamp - delay + max]`
 
     resources:
-     - `data_resource`: resource to provide stack. Accepted types: all
+     - `active_resource`: resource to provide stack. Accepted types: all
+     - `out_resource`: resource to accept built events. Accepted types: all
 
     '''
     req_opts = Process.req_opts + []
     default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'max_nhit' : -1, # max number of hits in an event (-1 sets no limit)
                                 'min_nhit' : 5, # min number of hits in an event
-                                'dt_cut' : 10e3 }) # max dt between hits in an event [ns]
-                                                   # (otherwise splits into two events)
+                                'dt_cut' : 10e3, # max dt between hits in an event [ns]
+                                                 # (otherwise splits into two events)
+                                'associate_triggers' : True, # attempt to associate triggers in stack
+                                                             # with events
+                                'trigger_window' : [0, 300e3] # set trigger acceptance window [min, max]
+                                                              # in ns
+                                })
     opt_resources = {}
     req_resources = {
-        'data_resource': None
+        'active_resource': None,
+        'out_resource' : None
         }
 
     def config(self): # Process method
@@ -278,6 +410,8 @@ class LArPixEventBuilderProcess(Process):
         self.max_nhit = self.options['max_nhit']
         self.min_nhit = self.options['min_nhit']
         self.dt_cut = self.options['dt_cut']
+        self.associate_triggers = self.options['associate_triggers']
+        self.trigger_window = self.options['trigger_window']
 
     def run(self): # Process method
         '''
@@ -292,20 +426,41 @@ class LArPixEventBuilderProcess(Process):
          - An event is only chosen if there is a gap larger than `dt_cut` on both sides of the event
          - A hold is requested on the `Hit` stack, so that the subsequent iterations have access to
          previous hits
+         - External triggers are assumed to come after associated events
 
         '''
-        super().config()
+        super().run()
 
-#        self.logger.debug('')
-        hits = reversed(self.resources['data_resource'].pop(reco3d_types.Hit, n=-1))
-#        self.logger.debug(hits)
-        events, remaining_hits = self.find_events(hits)
-#        self.logger.debug(events)
-#        self.logger.debug(remaining_hits)
-        if remaining_hits:
-            self.resources['data_resource'].preserve(reco3d_types.Hit)
-        self.resources['data_resource'].push(remaining_hits)
-        self.resources['data_resource'].push(events)
+        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
+        if hits:
+            hits = reversed(hits)
+        events, skipped_hits, remaining_hits = self.find_events(hits)
+        triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
+        if triggers:
+            triggers = reversed(triggers)
+
+        associated_events, unassociated_events = [], []
+        if self.associate_triggers:
+            associated_events, unassociated_events = self.find_associated_triggers(events, triggers)
+
+        self.preserve_unfinished(remaining_hits, unassociated_events)
+        self.resources['active_resource'].push(skipped_hits)
+        self.resources['active_resource'].push(remaining_hits)
+        self.resources['active_resource'].push(unassociated_events)
+
+        if self.associate_triggers:
+            self.resources['out_resource'].push(associated_events)
+        else:
+            self.resources['out_resource'].push(events)
+
+    def preserve_unfinished(self, *args):
+        ''' Preserve object types that are not 'null' '''
+        for arg in args:
+            if arg:
+                if isinstance(arg, list):
+                    self.resources['active_resource'].preserve(type(arg[0]))
+                else:
+                    self.resources['active_resource'].preserve(type(arg))
 
     def is_associated(self, hit, hits):
         ''' Apply hit selection criteria '''
@@ -327,6 +482,7 @@ class LArPixEventBuilderProcess(Process):
 
     def find_hit_clusters(self, hits):
         ''' Find isolated hit clusters '''
+        prev_hits = []
         hit_clusters = []
         curr_cluster = []
         for hit in hits:
@@ -337,17 +493,52 @@ class LArPixEventBuilderProcess(Process):
                 hit_clusters += [curr_cluster]
                 curr_cluster = [hit]
             else:
+                prev_hits += curr_cluster
                 curr_cluster = [hit]
-        return hit_clusters, curr_cluster
+        return prev_hits, hit_clusters, curr_cluster
 
     def find_events(self, hits):
         '''
         Find isolated hit clusters and convert them into event objects
         Note: event objects are created without event ids (this must be handled else where)
         '''
-        clusters, remaining_hits = self.find_hit_clusters(hits)
+        skipped_hits, clusters, remaining_hits = self.find_hit_clusters(hits)
         events = [reco3d_types.Event(evid=None, hits=cluster) for cluster in clusters]
-        return events, remaining_hits
+        return events, skipped_hits, remaining_hits
+
+    def in_trigger_window(self, event, trigger):
+        '''
+        Return true if any part of event is within the specifed trigger window
+        Trigger window is defined as `[trigger.ts - trigger.delay + trigger_window[0],
+        trigger.ts - trigger.delay + trigger_window[1]]`
+        '''
+        if event.ts_end < trigger.ts - trigger.delay + self.trigger_window[0]:
+            return False
+        elif event.ts_start > trigger.ts - trigger.delay + self.trigger_window[1]:
+            return False
+        return True
+
+    def find_associated_triggers(self, events, triggers):
+        '''
+        Find and associate triggers with events
+        '''
+        associated_events = []
+        unassociated_events = []
+        if not triggers or not events:
+            return [], events
+        for event in events:
+            associated_triggers = []
+            for trigger in triggers:
+                if self.in_trigger_window(event, trigger):
+                    associated_triggers += [trigger]
+            if associated_triggers:
+                new_event = event
+                new_event.triggers += associated_triggers
+                associated_events += [new_event]
+            else:
+                unassociated_events += [event]
+
+        return associated_events, unassociated_events
 
 class LArPixTrackReconstructionProcess(Process):
     '''
