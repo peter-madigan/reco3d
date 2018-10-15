@@ -83,17 +83,21 @@ def test_LArPixTriggerBuilderProcess():
 
 def test_LArPixEventBuilderAssociation():
     test_data = []
+
     ts = 0
     test_event = [reco3d_types.Hit(hid,px=0,py=0,ts=ts,q=1) for hid in range(10)]
     test_data += test_event
+
     ts += 500e3 # ns
     test_nonevent = [reco3d_types.Hit(10+hid,px=0,py=0,ts=ts,q=1) for hid in range(3)]
     test_data += test_nonevent
+
     ts += 497e3 # ns
     test_trigger = [reco3d_types.Hit(13+chipid,px=0,py=0,ts=ts,q=1,iochain=None,chipid=chipid,
                                      channelid=0)
                     for chipid in range(10)]
     test_data += test_trigger
+
     ts += 10e3 # ns
     test_nonevent = [reco3d_types.Hit(23+hid,px=0,py=0,ts=ts,q=1) for hid in range(3)]
     test_data += test_nonevent
@@ -102,7 +106,7 @@ def test_LArPixEventBuilderAssociation():
     tb = LArPixTriggerBuilderProcess(\
         OptionsTool({'channel_mask': dict([(chipid,[0]) for chipid in range(10)])}),
         active_resource=dr, out_resource=dr)
-    eb = LArPixEventBuilderProcess(OptionsTool(), active_resource=dr, out_resource=dr)
+    eb = LArPixEventBuilderProcess(OptionsTool({'associate_triggers':True}), active_resource=dr, out_resource=dr)
 
     dr.config()
     tb.config()

@@ -13,7 +13,7 @@ class ExternalTrigger(object):
         self.trig_type = type
 
     def __str__(self):
-        string = 'ExternalTrigger(trig_id={trigid}, ts={ts}, delay={delay}, '\
+        string = 'ExternalTrigger(trig_id={trig_id}, ts={ts}, delay={delay}, '\
             'type={trig_type})'.format(**vars(self))
         return string
 

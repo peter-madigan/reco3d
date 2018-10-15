@@ -293,12 +293,15 @@ class LArPixTriggerBuilderProcess(Process):
          - Assumes that hits are in chronological order
          - An trigger is defined as a cluster of hits separated by no more than `dt_cut` ns
          between hits and covering the entire channel mask
-         - An trigger is only created if there is a gap larger than `dt_cut` on both sides of the trigger
-
+         - An trigger is only created if all hits are contained within a window of `dt_cut`
         '''
         super().run()
 
-        hits = reversed(self.resources['active_resource'].pop(reco3d_types.Hit, n=-1))
+        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
+        if hits:
+            hits = reversed(hits)
+        else:
+            return
         triggers, skipped_hits, remaining_hits = self.find_triggers(hits)
         if remaining_hits:
             self.resources['active_resource'].preserve(reco3d_types.Hit)
@@ -339,7 +342,7 @@ class LArPixTriggerBuilderProcess(Process):
                 # keep only triggers that match the trigger mask in the hit cluster
                 trigger = []
                 for cluster_hit in curr_cluster:
-                    if cluster_hit.chipid in self.channel_mask.keys() and cluster_hit.chipid in self.channel_mask[cluster_hit.chipid]:
+                    if cluster_hit.chipid in self.channel_mask.keys() and cluster_hit.channelid in self.channel_mask[cluster_hit.chipid]:
                         trigger.append(cluster_hit)
                     else:
                         prev_hits.append(cluster_hit)
