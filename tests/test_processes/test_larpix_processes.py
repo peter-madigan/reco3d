@@ -102,26 +102,40 @@ def test_LArPixEventBuilderAssociation():
     test_nonevent = [reco3d_types.Hit(23+hid,px=0,py=0,ts=ts,q=1) for hid in range(3)]
     test_data += test_nonevent
 
-    dr = TestResource(OptionsTool())
+    ts += 10e3 # ns
+    test_event = [reco3d_types.Hit(26+hid,px=0,py=0,ts=ts,q=1) for hid in range(10)]
+    test_data += test_event
+
+    ts += 100e3 # ns
+    test_nonevent = [reco3d_types.Hit(36+hid,px=0,py=0,ts=ts,q=1) for hid in range(3)]
+    test_data += test_nonevent
+
+    active_dr = TestResource(OptionsTool())
+    out_dr = TestResource(OptionsTool())
     tb = LArPixTriggerBuilderProcess(\
         OptionsTool({'channel_mask': dict([(chipid,[0]) for chipid in range(10)])}),
-        active_resource=dr, out_resource=dr)
-    eb = LArPixEventBuilderProcess(OptionsTool({'associate_triggers':True}), active_resource=dr, out_resource=dr)
+        active_resource=active_dr, out_resource=active_dr)
+    eb = LArPixEventBuilderProcess(OptionsTool({'associate_triggers':True}), active_resource=active_dr, out_resource=out_dr)
 
-    dr.config()
+    active_dr.config()
+    out_dr.config()
     tb.config()
     eb.config()
-    dr.start()
+    active_dr.start()
+    out_dr.start()
     tb.start()
     eb.start()
-    dr.push(test_data)
+    active_dr.push(test_data)
     tb.run()
     eb.run()
 
-    events = dr.peek(reco3d_types.Event, n=-1)
-    triggers = dr.peek(reco3d_types.ExternalTrigger, n=-1)
-    assert len(events) == 1
+    associated_events = out_dr.peek(reco3d_types.Event, n=-1)
+    pending_events = active_dr.peek(reco3d_types.Event, n=-1)
+    triggers = active_dr.peek(reco3d_types.ExternalTrigger, n=-1)
+    assert len(associated_events) == 1
+    assert len(pending_events) == 1
     assert len(triggers) == 1
-    assert len(events[0].triggers) == 1
-    assert events[0].triggers[0].ts == 997e3
-    assert events[0].triggers[0].delay == 997e3
+    assert len(associated_events[0].triggers) == 1
+    assert not pending_events[0].triggers
+    assert associated_events[0].triggers[0].ts == 997e3
+    assert associated_events[0].triggers[0].delay == 997e3

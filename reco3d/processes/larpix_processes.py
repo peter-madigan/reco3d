@@ -439,21 +439,23 @@ class LArPixEventBuilderProcess(Process):
         if triggers:
             triggers = reversed(triggers)
 
-        associated_events, unassociated_events = [], []
+        associated_events, unassociated_events, pending_events = [], [], []
         if self.associate_triggers:
-            associated_events, unassociated_events = self.find_associated_triggers(events, triggers)
+            associated_events, unassociated_events, pending_events = self.find_associated_triggers(events, triggers)
 
         self.preserve_unfinished(remaining_hits)
         if self.associate_triggers:
-            self.preserve_unfinished(unassociated_events)
+            self.preserve_unfinished(pending_events)
         self.resources['active_resource'].push(skipped_hits)
         self.resources['active_resource'].push(remaining_hits)
-        self.resources['active_resource'].push(unassociated_events)
+        self.resources['active_resource'].push(pending_events)
 
+        out_events = []
         if self.associate_triggers:
-            self.resources['out_resource'].push(associated_events)
+            out_events = sorted(associated_events + unassociated_events, key=lambda x: x.ts_start)
         else:
-            self.resources['out_resource'].push(events)
+            out_events = events
+        self.resources['out_resource'].push(out_events)
 
     def preserve_unfinished(self, *args):
         ''' Preserve object types that are not 'null' '''
@@ -474,6 +476,15 @@ class LArPixEventBuilderProcess(Process):
             for other in hits:
                 if abs(hit.ts - other.ts) < self.dt_cut:
                     return True
+        return False
+
+    def is_pending_association(self, event, triggers):
+        ''' Return false if event is sooner than the earliest trigger window '''
+        if not list(triggers):
+            return True
+        max_t = max([self.absolute_trigger_window(trigger)[1] for trigger in triggers])
+        if event.ts_start > max_t:
+            return True
         return False
 
     def is_cluster(self, hits):
@@ -508,26 +519,35 @@ class LArPixEventBuilderProcess(Process):
         events = [reco3d_types.Event(evid=None, hits=cluster) for cluster in clusters]
         return events, skipped_hits, remaining_hits
 
+    def absolute_trigger_window(self, trigger):
+        ''' Return min, max times for trigger window '''
+        min_t = trigger.ts - trigger.delay + self.trigger_window[0]
+        max_t = trigger.ts - trigger.delay + self.trigger_window[1]
+        return min_t, max_t
+
     def in_trigger_window(self, event, trigger):
         '''
         Return true if any part of event is within the specifed trigger window
         Trigger window is defined as `[trigger.ts - trigger.delay + trigger_window[0],
         trigger.ts - trigger.delay + trigger_window[1]]`
         '''
-        if event.ts_end < trigger.ts - trigger.delay + self.trigger_window[0]:
+        min_t, max_t = self.absolute_trigger_window(trigger)
+        if event.ts_end < min_t:
             return False
-        elif event.ts_start > trigger.ts - trigger.delay + self.trigger_window[1]:
+        elif event.ts_start > max_t:
             return False
         return True
 
     def find_associated_triggers(self, events, triggers):
         '''
         Find and associate triggers with events
+        Returns events with an associated trigger, events that do not have an associated trigger
         '''
         associated_events = []
         unassociated_events = []
+        pending_events = []
         if not triggers or not events:
-            return [], events
+            return [], [], events
         for event in events:
             associated_triggers = []
             for trigger in triggers:
@@ -537,10 +557,12 @@ class LArPixEventBuilderProcess(Process):
                 new_event = event
                 new_event.triggers += associated_triggers
                 associated_events += [new_event]
+            elif self.is_pending_association(event, triggers):
+                pending_events += [event]
             else:
                 unassociated_events += [event]
 
-        return associated_events, unassociated_events
+        return associated_events, unassociated_events, pending_events
 
 class LArPixTrackReconstructionProcess(Process):
     '''
