@@ -38,7 +38,7 @@ class LArPixDataReaderProcess(Process):
         'out_resource': None,
         }
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
@@ -52,8 +52,8 @@ class LArPixDataReaderProcess(Process):
 
         self.max = self.options['max']
 
-    def run(self):
-        ''' Simply takes hits from the in_resource read_queue and moves them to the out_resource stack '''
+    def run(self): # Process method
+        ''' Simply takes objects from the in_resource read_queue and moves them to the out_resource stack '''
         super().run()
 
         obj = None
@@ -94,14 +94,14 @@ class LArPixCalibrationProcess(Process):
         'calib_resource': ['LArPixCalibrationDataResource']
         }
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
         self.calibrations = self.options['calibrations']
         self.max = self.options['max']
 
-    def run(self):
+    def run(self): # Process method
         '''
         Takes hits from the data_resource stack and applies the specified calibrations
         Puts hits back into stack after applying calibrations
@@ -137,7 +137,7 @@ class LArPixDataCounterProcess(Process):
         }
     req_resources = {}
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
@@ -166,7 +166,7 @@ class LArPixDataCounterProcess(Process):
         self.interval_counter['run iter'] = 0
         self.dtype_interval['run iter'] = self.interval
 
-    def run(self):
+    def run(self): # Process method
         ''' Tallies executions and data types in stack, logs on specified interval '''
         super().run()
 
@@ -215,7 +215,7 @@ class LArPixDataWriterProcess(Process):
         'out_resource': None
         }
 
-    def config(self):
+    def config(self): # Process method
         ''' Apply options to process '''
         super().config()
 
@@ -229,24 +229,34 @@ class LArPixDataWriterProcess(Process):
 
         self.max = self.options['max']
 
-    def run(self):
+    def run(self): # Process method
         ''' Copies objects from the in_resource stack to the out_resource write_queue '''
         super().run()
 
         if self.dtypes is None:
             for dtype in self.resources['in_resource'].stack_dtypes():
-                obj = self.resources['in_resource'].peek(dtype, n=self.max)
-
-                if obj is None:
-                    continue
-                self.resources['out_resource'].write(obj)
+                self.transfer_to_write_queue(dtype, n=self.max)
         else:
             for dtype in self.dtypes:
-                obj = self.resources['in_resource'].peek(dtype, n=self.max)
+                self.transfer_to_write_queue(dtype, n=self.max)
 
-                if obj is None:
-                    continue
-                self.resources['out_resource'].write(obj)
+    def finish(self):
+        ''' Dump remaining objects in the in_resource stack to the write_queue '''
+        super().finish()
+
+        if self.dtypes is None:
+            for dtype in self.resources['in_resource'].stack_dtypes():
+                self.transfer_to_write_queue(dtype, n=-1)
+        else:
+            for dtype in self.dtypes:
+                self.transfer_to_write_queue(dtype, n=-1)
+
+    def transfer_to_write_queue(self, dtype, n):
+        ''' Move n objects of dtype to write queue '''
+        obj = self.resources['in_resource'].peek(dtype, n=n)
+        if obj is None:
+            return
+        self.resources['out_resource'].write(obj)
 
 class LArPixTriggerBuilderProcess(Process):
     '''
@@ -457,6 +467,34 @@ class LArPixEventBuilderProcess(Process):
             out_events = events
         self.resources['out_resource'].push(out_events)
 
+    def finish(self): # Process method
+        ''' Perform a final event build and push all events to out_resource '''
+        super.run()
+
+        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
+        if hits:
+            hits = reversed(hits)
+        events, skipped_hits, remaining_hits = self.find_events(hits)
+        if is_cluster(remaining_hits):
+            events += [reco3d_types.Event(evid=None, hits=remaining_hits)]
+
+        triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
+        if triggers:
+            triggers = reversed(triggers)
+        associated_events, unassociated_events, pending_events = [], [], []
+        if self.associate_triggers:
+            associated_events, unassociated_events, pending_events = self.find_associated_triggers(events, triggers)
+
+        out_events = []
+        if self.associate_triggers:
+            out_events = sorted(associated_events + unassociated_events + pending_events, key=lambda x: x.ts_start)
+        else:
+            out_events = events
+
+        self.resources['active_resource'].push(skipped_hits)
+        self.resources['active_resource'].push(remaining_hits)
+        self.resources['out_resource'].push(out_events)
+
     def preserve_unfinished(self, *args):
         ''' Preserve object types that are not 'null' '''
         for arg in args:
@@ -605,7 +643,7 @@ class LArPixTrackReconstructionProcess(Process):
         algorithm. Put events back into the stack with associated tracks.
 
         '''
-        super().config()
+        super().run()
 
         events = self.resources['data_resource'].pop(reco3d_types.Event, n=-1)
         if events is None:
@@ -614,6 +652,13 @@ class LArPixTrackReconstructionProcess(Process):
             tracks = self.extract_tracks(event)
             event.reco_objs += tracks
         self.resources['data_resource'].push(events)
+
+    def finish(self): # Process method
+        '''
+        Perform a final iteration of track reco
+        '''
+        super().finish()
+        self.run()
 
     def extract_tracks(self, event):
         ''' Perform hough transform algorithm and return found tracks '''
