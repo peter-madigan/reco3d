@@ -17,7 +17,7 @@
                 "max_nhit" : -1,
                 "min_nhit" : 10,
                 "dt_cut" : 10e3,
-                "associate_triggers" : false,
+                "associate_triggers" : true,
                 "trigger_window" : [0, 300e3]
                 },
 
@@ -43,8 +43,11 @@
                 },
 
         "LArPixDataCounterProcess" : {
-                "dtypes" : ["ExternalTrigger", "Event"],
-                "interval" : 100
+                "dtypes" : ["Event"],
+                "interval" : 1000,
+                "dtype_interval" : {
+                     "Event" : 100
+                     }
                 },
 
         "LArPixTriggerBuilderProcess" : {

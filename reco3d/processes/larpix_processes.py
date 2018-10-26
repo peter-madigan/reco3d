@@ -443,11 +443,21 @@ class LArPixEventBuilderProcess(Process):
 
         hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
         if hits:
-            hits = reversed(hits)
+            hits = list(reversed(hits))
+        else:
+            hits = []
+        previous_events = self.resources['active_resource'].pop(reco3d_types.Event, n=-1)
+        if previous_events:
+            previous_events = list(reversed(previous_events))
+        else:
+            previous_events = []
         events, skipped_hits, remaining_hits = self.find_events(hits)
+        events = previous_events + events
         triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
         if triggers:
-            triggers = reversed(triggers)
+            triggers = list(reversed(triggers))
+        else:
+            triggers = []
 
         associated_events, unassociated_events, pending_events = [], [], []
         if self.associate_triggers:
@@ -469,13 +479,13 @@ class LArPixEventBuilderProcess(Process):
 
     def finish(self): # Process method
         ''' Perform a final event build and push all events to out_resource '''
-        super.run()
+        super().finish()
 
         hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
         if hits:
             hits = reversed(hits)
         events, skipped_hits, remaining_hits = self.find_events(hits)
-        if is_cluster(remaining_hits):
+        if self.is_cluster(remaining_hits):
             events += [reco3d_types.Event(evid=None, hits=remaining_hits)]
 
         triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)

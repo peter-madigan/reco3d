@@ -11,50 +11,87 @@ class Manager(object):
             self.logger = LoggingTool(options.get('LoggingTool'), name=self.__class__.__name__)
             self.resources = ResourceManager(options.get('ResourceManager'))
             self.processes = ProcessManager(options.get('ProcessManager'))
-            self.logger.debug('{} initialized'.format(self))
+            self.logger.info('{} initialized'.format(self))
 
       def add_resources(self, *args, **kwargs):
             for resource in args:
                   self.resources.add(resource)
             for key, resource in kwargs.items():
                   self.resources.add(resource, key=key)
-            self.logger.debug('Resources added to Manager')
+            self.logger.info('Resources added to Manager')
 
       def add_processes(self, *args):
             for process in args:
                   self.processes.add(process)
-            self.logger.debug('Processes added to Manager')
+            self.logger.info('Processes added to Manager')
 
       def config(self):
-            self.resources.config()
-            self.processes.config()
-            self.logger.debug('config stage complete')
+            try:
+                  self.resources.config()
+                  self.processes.config()
+                  self.logger.info('config stage complete')
+            except KeyboardInterrupt:
+                  self.logger.critical('config aborted')
+                  raise
+            except Exception as err:
+                  self.logger.critical('failed to config')
+                  self.logger.critical(err)
+                  raise err
 
       def start(self):
-            self.resources.start()
-            self.processes.start()
-            self.logger.debug('start stage complete')
+            try:
+                  self.resources.start()
+                  self.processes.start()
+                  self.logger.info('start stage complete')
+            except KeyboardInterrupt:
+                  self.logger.critical('start aborted')
+                  self.cleanup()
+                  raise
+            except Exception as err:
+                  self.logger.critical('failed to start')
+                  self.logger.critical(err)
+                  self.cleanup()
+                  raise err
 
       def run(self):
             while True:
-                  self.resources.run()
-                  self.processes.run()
+                  try:
+                        self.resources.run()
+                        self.processes.run()
+                  except KeyboardInterrupt:
+                        self.logger.error('run stopped')
+                        break
+                  except Exception as err:
+                        self.logger.error(err)
 
-                  if not self.resources.continue_run():
+                  try:
+                        if not self.resources.continue_run():
+                              break
+                        if not self.processes.continue_run():
+                              break
+                  except KeyboardInterrupt:
+                        self.logger.error('run stopped')
                         break
-                  if not self.processes.continue_run():
+                  except Exception as err:
+                        self.logger.error(err)
                         break
-            self.logger.debug('run stage complete')
+            self.logger.info('run stage complete')
 
       def finish(self):
-            self.resources.finish()
-            self.processes.finish()
-            self.logger.debug('finish stage complete')
+            try:
+                  self.resources.finish()
+                  self.processes.finish()
+                  self.logger.info('finish stage complete')
+            except KeyboardInterrupt:
+                  self.logger.error('finish aborted')
+            except Exception as err:
+                  self.logger.error('failed to finish')
+                  self.logger.error(err)
             
       def cleanup(self):
             self.resources.cleanup()
             self.processes.cleanup()
-            self.logger.debug('cleanup stage complete')
+            self.logger.info('cleanup stage complete')
 
 class ResourceManager(object):
       req_opts = [] # list of required options (raise error if not found)
@@ -89,7 +126,7 @@ class ResourceManager(object):
                   self._resources[resource_name] = resource
             else:
                   err_msg = 'resource already exists in ResourceManager'
-                  self.error(err_msg)
+                  self.logger.error(err_msg)
                   raise ValueError(err_msg)
 
       def config(self):
