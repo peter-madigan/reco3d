@@ -28,7 +28,8 @@ def timed(method):
         ti = default_timer()
         result = method(*args, **kwargs)
         tf = default_timer()
-        print('{}: {}'.format(str(method), tf - ti))
+        if tf - ti > 0.25:
+            print('{}: {}'.format(str(method), tf - ti))
         return result
     return timed_method
 

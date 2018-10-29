@@ -1,3 +1,4 @@
+import traceback
 from reco3d.tools.logging import LoggingTool
 
 class Manager(object):
@@ -35,6 +36,7 @@ class Manager(object):
                   raise
             except Exception as err:
                   self.logger.critical('failed to config')
+                  self.logger.debug(traceback.format_exc())
                   self.logger.critical(err)
                   raise err
 
@@ -49,6 +51,7 @@ class Manager(object):
                   raise
             except Exception as err:
                   self.logger.critical('failed to start')
+                  self.logger.debug(traceback.format_exc())
                   self.logger.critical(err)
                   self.cleanup()
                   raise err
@@ -62,6 +65,7 @@ class Manager(object):
                         self.logger.error('run stopped')
                         break
                   except Exception as err:
+                        self.logger.debug(traceback.format_exc())
                         self.logger.error(err)
 
                   try:
@@ -73,6 +77,7 @@ class Manager(object):
                         self.logger.error('run stopped')
                         break
                   except Exception as err:
+                        self.logger.debug(traceback.format_exc())
                         self.logger.error(err)
                         break
             self.logger.info('run stage complete')
@@ -86,8 +91,9 @@ class Manager(object):
                   self.logger.error('finish aborted')
             except Exception as err:
                   self.logger.error('failed to finish')
+                  self.logger.debug(traceback.format_exc())
                   self.logger.error(err)
-            
+
       def cleanup(self):
             self.resources.cleanup()
             self.processes.cleanup()

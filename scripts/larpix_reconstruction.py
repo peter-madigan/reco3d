@@ -59,6 +59,10 @@ infile_resource = LArPixSerialDataResource(infile_options)
 active_options = options.get('LArPixActiveResource')
 active_resource = Resource(active_options)
 
+# Create an active memory resource to utilize n-level parallel processing in track reco
+parallel_options = options.get('LArPixParallelResource')
+parallel_resource = Resource(parallel_options)
+
 # Create output file
 outfile_options = options.get('LArPixDataResource')
 outfile_resource = LArPixDataResource(outfile_options)
@@ -81,7 +85,7 @@ counter_process = LArPixDataCounterProcess(counter_options, data_resource=outfil
 
 # Create a track reconstruction
 trackreco_options = options.get('LArPixTrackReconstructionProcess')
-trackreco_process = LArPixTrackReconstructionProcess(trackreco_options, data_resource=outfile_resource)
+trackreco_process = LArPixTrackReconstructionProcess(trackreco_options, data_resource=outfile_resource, parallel_resource=parallel_resource)
 
 # Create an event writer
 writer_options = options.get('LArPixDataWriterProcess')

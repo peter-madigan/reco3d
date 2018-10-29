@@ -85,7 +85,7 @@ class HitCollection(object):
             return [self.hits[idx] for idx in key]
 
     def __len__(self):
-        return nhit
+        return self.nhit
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):

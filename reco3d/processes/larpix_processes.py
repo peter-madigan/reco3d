@@ -7,10 +7,12 @@ This module contains LArPix specific processes:
  - LArPixTriggerBuilderProcess
  - LArPixTrackReconstructionProcess
 '''
+import os
 import numpy as np
 import reco3d.tools.algorithms.hough as hough
 import reco3d.tools.python as reco3d_pytools
 import reco3d.types as reco3d_types
+import multiprocessing
 from reco3d.processes.basic_processes import Process
 
 class LArPixDataReaderProcess(Process):
@@ -84,7 +86,7 @@ class LArPixCalibrationProcess(Process):
 
     '''
     req_opts = Process.req_opts + []
-    default_ops = reco3d_pytools.combine_dicts(\
+    default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'calibrations' : [], # list of calibrations to apply
                                 'max' : 1 }) # max number of hits to pull from stack (-1 pulls all hits)
 
@@ -307,11 +309,7 @@ class LArPixTriggerBuilderProcess(Process):
         '''
         super().run()
 
-        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
-        if hits:
-            hits = reversed(hits)
-        else:
-            return
+        hits = reversed(self.resources['active_resource'].pop(reco3d_types.Hit, n=-1))
         triggers, skipped_hits, remaining_hits = self.find_triggers(hits)
         if remaining_hits:
             self.resources['active_resource'].preserve(reco3d_types.Hit)
@@ -441,23 +439,11 @@ class LArPixEventBuilderProcess(Process):
         '''
         super().run()
 
-        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
-        if hits:
-            hits = list(reversed(hits))
-        else:
-            hits = []
-        previous_events = self.resources['active_resource'].pop(reco3d_types.Event, n=-1)
-        if previous_events:
-            previous_events = list(reversed(previous_events))
-        else:
-            previous_events = []
+        hits = list(reversed(self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)))
+        previous_events = list(reversed(self.resources['active_resource'].pop(reco3d_types.Event, n=-1)))
         events, skipped_hits, remaining_hits = self.find_events(hits)
         events = previous_events + events
-        triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
-        if triggers:
-            triggers = list(reversed(triggers))
-        else:
-            triggers = []
+        triggers = list(reversed(self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)))
 
         associated_events, unassociated_events, pending_events = [], [], []
         if self.associate_triggers:
@@ -481,16 +467,12 @@ class LArPixEventBuilderProcess(Process):
         ''' Perform a final event build and push all events to out_resource '''
         super().finish()
 
-        hits = self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)
-        if hits:
-            hits = reversed(hits)
+        hits = list(reversed(self.resources['active_resource'].pop(reco3d_types.Hit, n=-1)))
         events, skipped_hits, remaining_hits = self.find_events(hits)
         if self.is_cluster(remaining_hits):
             events += [reco3d_types.Event(evid=None, hits=remaining_hits)]
 
-        triggers = self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)
-        if triggers:
-            triggers = reversed(triggers)
+        triggers = list(reversed(self.resources['active_resource'].peek(reco3d_types.ExternalTrigger, n=-1)))
         associated_events, unassociated_events, pending_events = [], [], []
         if self.associate_triggers:
             associated_events, unassociated_events, pending_events = self.find_associated_triggers(events, triggers)
@@ -621,18 +603,28 @@ class LArPixTrackReconstructionProcess(Process):
      - `hough_ndir`: number of directions for Hough transform to generate (default: 1000)
      - `hough_npos`:
      - `hough_dr`: cylindrical radius cut to include in fit
+     - `use_multiprocessing`: utilitze parallel processing on events
+     - `min_nevent_for_multiproc`: how many events should be accumulated in the
+     `parallel_resource` before processing (default is cpu count*2)
 
     resources:
      - `data_resource`: resource to provide stack. Accepted types: all
+     - `parallel_resource`: a resource to temporarily accumulate events for parallel
+     processing. Accepted types: all
 
     '''
     req_opts = Process.req_opts + []
-    default_ops = reco3d_pytools.combine_dicts(\
+    default_opts = reco3d_pytools.combine_dicts(\
         Process.default_opts, { 'hough_threshold' : 5,
                                 'hough_ndir' : 1000,
                                 'hough_npos' : 30,
-                                'hough_dr' : 3})
-    opt_resources = {}
+                                'hough_dr' : 3,
+                                'use_multiprocessing' : True,
+                                'min_nevent_for_multiproc' : int(os.cpu_count()*2)
+                                })
+    opt_resources = {
+        'parallel_resource': None
+        }
     req_resources = {
         'data_resource': None
         }
@@ -647,6 +639,13 @@ class LArPixTrackReconstructionProcess(Process):
         self.hough_dr = self.options['hough_dr']
         self.hough_cache = hough.setup_fit_errors()
 
+        self.use_multiprocessing = self.options['use_multiprocessing']
+        if self.use_multiprocessing:
+            self.pool = multiprocessing.Pool()
+        else:
+            self.pool = None
+        self.min_nevent_for_multiproc = self.options['min_nevent_for_multiproc']
+
     def run(self): # Process method
         '''
         Pull all events from stack. For each event, perform the track reconstruction
@@ -655,12 +654,18 @@ class LArPixTrackReconstructionProcess(Process):
         '''
         super().run()
 
-        events = self.resources['data_resource'].pop(reco3d_types.Event, n=-1)
-        if events is None:
+        events = []
+        if self.resources['parallel_resource']:
+            events += list(reversed(self.resources['parallel_resource'].pop(reco3d_types.Event, n=-1)))
+        events += list(reversed(self.resources['data_resource'].pop(reco3d_types.Event, n=-1)))
+        if not events:
             return
-        for event in events:
-            tracks = self.extract_tracks(event)
-            event.reco_objs += tracks
+
+        events = self.perform_reconstruction(events)
+
+        if events:
+            self.logger.info('events processed: {}'.format(len(events)))
+            self.logger.info('tracks processed: {}'.format(sum([len(event.reco_objs) for event in events])))
         self.resources['data_resource'].push(events)
 
     def finish(self): # Process method
@@ -668,20 +673,62 @@ class LArPixTrackReconstructionProcess(Process):
         Perform a final iteration of track reco
         '''
         super().finish()
-        self.run()
 
-    def extract_tracks(self, event):
+        events = []
+        if self.resources['parallel_resource']:
+            events += list(reversed(self.resources['parallel_resource'].pop(reco3d_types.Event, n=-1)))
+        events += list(reversed(self.resources['data_resource'].pop(reco3d_types.Event, n=-1)))
+        if not events:
+            return
+
+        events = self.perform_reconstruction(events, force=True)
+
+        self.resources['data_resource'].push(events)
+
+    def perform_reconstruction(self, events, force=False):
+        '''
+        Perform the reconstruction algorithm on the specified events
+        If force flag is false, will attempt to accumulate events for multiprocessing
+        '''
+        if self.use_multiprocessing:
+            if len(events) < self.min_nevent_for_multiproc and self.resources['parallel_resource'] and not force:
+                self.resources['parallel_resource'].push(events)
+                return []
+            reconstructed_tracks = [self.pool.apply_async(\
+                    self.extract_tracks, args=(event,
+                                               self.hough_ndir,
+                                               self.hough_npos,
+                                               self.hough_dr,
+                                               self.hough_threshold,
+                                               self.hough_cache))
+                                    for event in events]
+            for i,event in enumerate(events):
+                event.reco_objs += reconstructed_tracks[i].get()
+        else:
+            reconstructed_tracks = [self.extract_tracks(event,
+                                                        self.hough_ndir,
+                                                        self.hough_npos,
+                                                        self.hough_dr,
+                                                        self.hough_threshold,
+                                                        self.hough_cache)
+                                    for event in events]
+            for i,event in enumerate(events):
+                event.reco_objs += reconstructed_tracks[i]
+        return events
+
+    @staticmethod
+    def extract_tracks(event, hough_ndir, hough_npos, hough_dr, hough_threshold, hough_cache):
         ''' Perform hough transform algorithm and return found tracks '''
         x = np.array(event['px'])/10
         y = np.array(event['py'])/10
         z = np.array(event['ts'] - event.ts_start)/1000
         points = np.array(list(zip(x,y,z)))
         params = hough.HoughParameters()
-        params.ndirections = self.hough_ndir
-        params.npositions = self.hough_npos
-        params.dr = self.hough_dr
+        params.ndirections = hough_ndir
+        params.npositions = hough_npos
+        params.dr = hough_dr
         lines, points, params = hough.run_iterative_hough(points,
-                params, self.hough_threshold, self.hough_cache)
+                params, hough_threshold, hough_cache)
 
         tracks = []
         for line, hit_idcs in lines.items():

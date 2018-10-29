@@ -67,6 +67,7 @@ class Process(object):
                     err_msg = 'resource {} type is not in allowed resource types'.format(opt_key)
                     self.logger.error(err_msg)
                     raise RuntimeError(err_msg)
+        self.logger.debug('config - {}'.format(str(self.options)))
 
     def start(self):
         pass

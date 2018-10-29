@@ -57,7 +57,7 @@ class Resource(object):
         self.logger.debug('{} initialized'.format(self))
 
     def config(self):
-        pass
+        self.logger.debug('config - {}'.format(str(self.options)))
 
     def start(self):
         pass
@@ -159,7 +159,7 @@ class Resource(object):
 
     def pop(self, dtype, n=1):
         '''
-        Grab object from active stack, else return None
+        Grab objects from active stack, else return None
         If grabbing multiple objects, a list of objects is returned with an order
         as though you had called [pop(dtype) for _ in range(n)]
         '''
@@ -180,6 +180,8 @@ class Resource(object):
                 obj = reversed(self._stack[dtype])
                 self._stack[dtype] = []
                 return list(obj)
+        elif n == -1 or n > 1:
+            return []
         return None
 
     def push(self, obj):
@@ -210,6 +212,8 @@ class Resource(object):
                 return list(reversed(self._stack[dtype][-n:].copy()))
             else:
                 return list(reversed(self._stack[dtype].copy()))
+        elif n == -1 or n > 1:
+            return []
         return None
 
     def purge(self, dtype=None):
